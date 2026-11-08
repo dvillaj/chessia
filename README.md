@@ -8,7 +8,7 @@ Objetivo: pasar de ~1570 a 1850 en partidas rápidas 15+10 con la cuenta **peond
 | El entrenador | `prompts/prompt_analisis_partidas_v4.txt` | Explica cada partida y devuelve un PGN enriquecido para Lichess Study. |
 | El medidor | `metricas_pgn.py` | Calcula las métricas de progreso. Los números los saca el script, no el modelo. |
 | El verificador | `verificar_pgn.py` | Comprueba que cada PGN enriquecido tiene todas las jugadas del original y cumple el formato. |
-| El analizador local | `entorno/` | Analiza tus partidas con Stockfish en tu ordenador (opcional; instrucciones en la sección 4). |
+| El analizador local | `analisis_local/` | Analiza tus partidas con Stockfish en tu ordenador (opcional; instrucciones en la sección 4). |
 
 > **Idea clave:** el prompt explica, el script mide. No le pidas a un modelo aritmética de relojes ni que recuerde tus cifras anteriores.
 
@@ -24,12 +24,14 @@ pipenv install
 
 Esto instala las dependencias definidas en `Pipfile` y `Pipfile.lock`. Ejecuta los scripts de Python desde la raíz con `pipenv run python`; no hace falta activar un entorno virtual manualmente. Stockfish se instala aparte y solo es necesario para el análisis local.
 
+No hace falta `setup.py`: el proyecto se ejecuta como un conjunto de scripts y Pipenv ya gestiona sus dependencias. El núcleo cuenta con pruebas unitarias basadas en `unittest`; se pueden ejecutar sin instalar un framework de pruebas. Si más adelante se convierte en un paquete instalable, se puede añadir configuración en `pyproject.toml`.
+
 ---
 
 ## 1. Resumen en 7 pasos
 
 1. Juega 15+10 en peondeloto siguiendo las reglas del perfil.
-2. Consigue evaluaciones: pide el análisis en Lichess o analiza en local (`entorno/`).
+2. Consigue evaluaciones: pide el análisis en Lichess o analiza en local (`analisis_local/`).
 3. Guarda los PGN, con relojes y evaluaciones, en `partidas/peondeloto/` (o en `partidas_analizadas/` si los analizas en local).
 4. Ejecuta `metricas_pgn.py` y mira la tabla de progreso.
 5. En un chat con Claude, pega el prompt y adjunta `perfil_peondeloto.md` y los PGN nuevos.
@@ -45,12 +47,13 @@ Esto instala las dependencias definidas en `Pipfile` y `Pipfile.lock`. Ejecuta l
 ```
 ajedrez/
 ├── README.md, CONTEXTO_IA.md, perfil_peondeloto.md
+├── CHANGELOG.md                 historial de versiones del software
 ├── Pipfile, Pipfile.lock        entorno Python compartido del proyecto
 ├── metricas_pgn.py              métricas de progreso
 ├── verificar_pgn.py             comprobación de los PGN enriquecidos
-├── entorno/                     análisis local con Stockfish (opcional)
+├── analisis_local/               herramientas de análisis local con Stockfish (opcional)
 ├── prompts/
-│   ├── CHANGELOG.md             historial de versiones
+│   ├── CHANGELOG.md             historial de versiones del prompt
 │   └── prompt_analisis_partidas_v0.txt ... _v4.txt   (la vigente es v4)
 ├── partidas/peondeloto/         exportaciones de Lichess (.pgn), sin tocar
 ├── partidas_analizadas/         PGN analizados en local (opcional)
@@ -107,19 +110,21 @@ El script busca el motor en `--motor`, en la variable de entorno `STOCKFISH_PATH
 Comprueba la instalación y ejecuta el autotest:
 
 ```
-pipenv run python entorno/analizar_local.py --autotest --motor /ruta/a/stockfish
+pipenv run python analisis_local/analizar_local.py --autotest --motor /ruta/a/stockfish
 ```
 
 Debe terminar con `AUTOTEST OK`. Las pruebas del núcleo que no necesitan motor se ejecutan con:
 
 ```
-pipenv run python entorno/pruebas_nucleo.py
+pipenv run python analisis_local/pruebas_nucleo.py
 ```
+
+Este comando ejecuta las pruebas unitarias del núcleo con `unittest`; no requiere Stockfish.
 
 ### Analizar partidas
 
 ```
-pipenv run python entorno/analizar_local.py partidas/peondeloto --salida partidas_analizadas --motor /ruta/a/stockfish
+pipenv run python analisis_local/analizar_local.py partidas/peondeloto --salida partidas_analizadas --motor /ruta/a/stockfish
 ```
 
 Escribe un `<nombre>_analizado.pgn` por cada PGN de entrada. Las partidas que ya traen evaluaciones se copian sin cambios, salvo que se indique `--reanalizar`.
@@ -153,7 +158,7 @@ pipenv run python verificar_pgn.py --originales partidas_analizadas --enriquecid
 **Validar las reglas sin motor:** el script compara las etiquetas calculadas con las de Lichess:
 
 ```
-pipenv run python entorno/validar_umbrales_offline.py partidas
+pipenv run python analisis_local/validar_umbrales_offline.py partidas
 ```
 
 Con las 98 partidas analizadas por Lichess disponibles al construirlo, el acuerdo fue del 99,79 % en 5.657 jugadas con evaluaciones normales y del 97,87 % en 235 casos con mate (reglas aproximadas). Esto valida **la regla**, no el motor.
@@ -161,7 +166,7 @@ Con las 98 partidas analizadas por Lichess disponibles al construirlo, el acuerd
 **Comparar con Stockfish:** vuelve a analizar partidas que Lichess ya evaluó y compara los resultados jugada a jugada:
 
 ```
-pipenv run python entorno/calibrar_con_lichess.py partidas --motor /ruta/a/stockfish --maximo 10
+pipenv run python analisis_local/calibrar_con_lichess.py partidas --motor /ruta/a/stockfish --maximo 10
 ```
 
 Muestra la diferencia de evaluación, el acuerdo de etiquetas y los blunders por partida. Si el acuerdo es bajo, prueba con más profundidad o con `--nodos`. Una vez elegido el ajuste, úsalo siempre igual para las partidas que quieras comparar.

@@ -12,8 +12,8 @@ Sirve para decidir con datos que profundidad usar y cuanto se parece tu analisis
 Requiere python-chess y Stockfish (ver README.md, sección 4).
 
 Uso:
-  pipenv run python entorno/calibrar_con_lichess.py partidas/peondeloto --motor /ruta/a/stockfish --maximo 10
-  pipenv run python entorno/calibrar_con_lichess.py partidas/peondeloto --profundidad 20 --maximo 10
+  pipenv run python analisis_local/calibrar_con_lichess.py partidas/peondeloto --motor /ruta/a/stockfish --maximo 10
+  pipenv run python analisis_local/calibrar_con_lichess.py partidas/peondeloto --profundidad 20 --maximo 10
 """
 import argparse
 import collections

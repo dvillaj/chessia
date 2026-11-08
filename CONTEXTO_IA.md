@@ -30,7 +30,7 @@ ajedrez/
 ├── perfil_peondeloto.md       diagnóstico, áreas de mejora, línea base y objetivos
 ├── metricas_pgn.py            script que calcula las métricas, sin dependencias
 ├── verificar_pgn.py           comprueba que los PGN enriquecidos están completos y bien formados
-├── entorno/                   análisis local con Stockfish (opcional; instrucciones en README.md, sección 4)
+├── analisis_local/            herramientas de análisis local con Stockfish (opcional; instrucciones en README.md, sección 4)
 │   ├── analizar_local.py      analiza PGN con Stockfish y escribe el resultado en formato Lichess
 │   ├── calibrar_con_lichess.py   compara el análisis local con el de Lichess
 │   ├── nucleo.py              lógica pura: evaluaciones, clasificación, lectura y escritura de PGN
@@ -51,7 +51,7 @@ ajedrez/
 | Métricas y agregados | `metricas_pgn.py`. Nunca los recalcules de memoria. |
 | Que un PGN enriquecido está completo y bien formado | `verificar_pgn.py`. Lo que diga el modelo sobre su propia salida no sustituye a esta comprobación. |
 | Diagnóstico, áreas de mejora (A1-A7), fuertes (S1-S4), línea base y objetivos | `perfil_peondeloto.md` |
-| Evaluaciones y etiquetas de error cuando se analiza en local | `entorno/analizar_local.py` y la regla de `entorno/nucleo.py` |
+| Evaluaciones y etiquetas de error cuando se analiza en local | `analisis_local/analizar_local.py` y la regla de `analisis_local/nucleo.py` |
 | Cómo se explica cada partida | el prompt vigente |
 | Qué cambió entre versiones del prompt | `prompts/CHANGELOG.md` |
 
@@ -73,7 +73,7 @@ ajedrez/
 ## 4. Flujo de trabajo
 
 1. El usuario juega 15+10 en peondeloto.
-2. Consigue evaluaciones: pide el análisis del ordenador en Lichess y exporta los PGN con relojes y evaluaciones, o analiza las partidas en local con `entorno/analizar_local.py` (Stockfish). Mide siempre sobre una sola versión de cada partida.
+2. Consigue evaluaciones: pide el análisis del ordenador en Lichess y exporta los PGN con relojes y evaluaciones, o analiza las partidas en local con `analisis_local/analizar_local.py` (Stockfish). Mide siempre sobre una sola versión de cada partida.
 3. Guarda los originales en `partidas/` y ejecuta `metricas_pgn.py` para ver el progreso.
 4. En un chat, pega el prompt y adjunta `perfil_peondeloto.md` y los PGN. Recibe un PGN enriquecido por partida, como fichero si el chat puede crearlos o como bloque de código si no.
 5. Guarda los PGN enriquecidos en `analisis/` y ejecuta `verificar_pgn.py` para comprobar que no falta ninguna jugada.
@@ -144,7 +144,7 @@ El formato está pensado para importarse en un Estudio de Lichess sin fallos. Re
 - v2 con una partida sin evaluaciones. Destapó los problemas corregidos en v3.
 - **v3 y v4 no se han probado todavía.** Tampoco se ha probado ninguna versión en un chat nuevo: las pruebas se hicieron en una conversación donde el ejecutor ya conocía los fallos, así que no miden que un modelo la cumpla a la primera.
 
-**Entorno local de análisis** (`entorno/`):
+**Análisis local** (`analisis_local/`):
 - Probado: la lógica pura (18 pruebas), la regla de clasificación contra Lichess (99,79 % y 97,87 %) y el flujo completo con un motor simulado sobre dos partidas reales.
 - **No probado:** la integración con python-chess y Stockfish reales, porque el entorno donde se construyó no tenía red ni motor. El usuario debe ejecutar `analizar_local.py --autotest` y `calibrar_con_lichess.py`.
 

@@ -12,9 +12,9 @@ El resultado se puede usar tal cual con metricas_pgn.py, verificar_pgn.py y el p
 REQUISITOS  python-chess (pipenv install desde la raíz) y un ejecutable de Stockfish.
 
 USO
-  pipenv run python entorno/analizar_local.py partidas/peondeloto --motor /ruta/a/stockfish
-  pipenv run python entorno/analizar_local.py partidas/peondeloto --profundidad 18 --salida partidas_analizadas
-  pipenv run python entorno/analizar_local.py --autotest --motor /ruta/a/stockfish
+  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --motor /ruta/a/stockfish
+  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --profundidad 18 --salida partidas_analizadas
+  pipenv run python analisis_local/analizar_local.py --autotest --motor /ruta/a/stockfish
 
 El motor se busca, por este orden, en --motor, en la variable de entorno STOCKFISH_PATH, en el PATH y en
 las rutas habituales. Las partidas que ya traen evaluaciones se copian sin cambios, salvo con --reanalizar.
