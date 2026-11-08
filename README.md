@@ -110,11 +110,20 @@ Stockfish se instala aparte:
 - **Windows:** descarga Stockfish desde su web oficial (stockfishchess.org), descomprímelo y anota la ruta del `.exe`.
 
 El script busca el motor en `--motor`, en la variable de entorno `STOCKFISH_PATH`, en el PATH y en las rutas habituales.
+Para no pasar la ruta en cada ejecución, crea un fichero `.env` en la raíz del proyecto con esta línea
+(debe apuntar al ejecutable de Stockfish):
+
+```
+STOCKFISH_PATH=C:\WinBoard-4.8.0\stockfish
+```
+
+Pipenv carga automáticamente las variables de `.env` al ejecutar con `pipenv run`. El fichero `.env` local
+está excluido de Git; `--motor` y las variables de entorno ya definidas tienen prioridad sobre su valor.
 
 Comprueba la instalación y ejecuta el autotest:
 
 ```
-pipenv run python analisis_local/analizar_local.py --autotest --motor /ruta/a/stockfish
+pipenv run python analisis_local/analizar_local.py --autotest
 ```
 
 Debe terminar con `AUTOTEST OK`. Las pruebas unitarias del núcleo que no necesitan motor se ejecutan desde la raíz con:
@@ -128,7 +137,7 @@ No requieren Stockfish.
 ### Analizar partidas
 
 ```
-pipenv run python analisis_local/analizar_local.py partidas/peondeloto --salida partidas_analizadas --motor /ruta/a/stockfish
+pipenv run python analisis_local/analizar_local.py partidas/peondeloto --salida partidas_analizadas
 ```
 
 Escribe un `<nombre>_analizado.pgn` por cada PGN de entrada. Las partidas que ya traen evaluaciones se copian sin cambios, salvo que se indique `--reanalizar`.
@@ -170,7 +179,7 @@ Con las 98 partidas analizadas por Lichess disponibles al construirlo, el acuerd
 **Comparar con Stockfish:** vuelve a analizar partidas que Lichess ya evaluó y compara los resultados jugada a jugada:
 
 ```
-pipenv run python analisis_local/calibrar_con_lichess.py partidas --motor /ruta/a/stockfish --maximo 10
+pipenv run python analisis_local/calibrar_con_lichess.py partidas --maximo 10
 ```
 
 Muestra la diferencia de evaluación, el acuerdo de etiquetas y los blunders por partida. Si el acuerdo es bajo, prueba con más profundidad o con `--nodos`. Una vez elegido el ajuste, úsalo siempre igual para las partidas que quieras comparar.
