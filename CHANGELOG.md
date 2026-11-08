@@ -3,6 +3,25 @@
 Historial de cambios del software. El historial de versiones del prompt de análisis
 se mantiene por separado en [`prompts/CHANGELOG.md`](prompts/CHANGELOG.md).
 
+## [1.1.0] - 2026-11-08
+
+### Añadido
+
+- Opción `--tiempo` en `analizar_local.py` para limitar el análisis por segundos por posición.
+
+### Cambiado
+
+- La profundidad por defecto del análisis local pasa de 16 a 20, que da evaluaciones menos ruidosas.
+- Orden de los límites de análisis: `--nodos`, `--tiempo`, `--profundidad`.
+- `validar_umbrales_offline.py` solo usa partidas con `[Annotator "lichess.org"]` e informa de cuántas ignora.
+- `calibrar_con_lichess.py` simplifica el ejemplo de uso de su cabecera.
+- Ruta de ejemplo de `STOCKFISH_PATH` en el README apunta al ejecutable.
+
+### Corregido
+
+- El motor recibe `ucinewgame` al empezar cada partida y ya no arrastra la tabla hash de la anterior.
+- La validación sin motor ya no es circular: antes podía contar como Lichess un PGN analizado en local con el mismo `GameId`.
+
 ## [1.0.1] - 2026-11-08
 
 ### Añadido

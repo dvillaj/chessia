@@ -2,7 +2,7 @@
 
 Documento escrito para que un asistente de IA entienda este proyecto antes de ayudar. Léelo entero al empezar una sesión. Si algo de aquí contradice lo que dice el usuario en el chat, manda el usuario, pero avísale de la diferencia.
 
-Última actualización: 8 nov 2026. Versión vigente del prompt: **v4**.
+Última actualización: 8 nov 2026. Versión vigente del prompt: **v4**. Versión del software: **1.1.0** (ver `CHANGELOG.md`).
 
 ---
 
@@ -24,19 +24,21 @@ Ejemplos de lo que se espera de ti: analizar partidas con el prompt, interpretar
 ## 2. Mapa de ficheros
 
 ```
-ajedrez/
+chessia/
 ├── README.md                  guía de uso para el usuario, incluido el análisis local
 ├── CONTEXTO_IA.md             este documento
+├── CHANGELOG.md               historial de versiones del software (el del prompt está en prompts/)
+├── Pipfile, Pipfile.lock      dependencias; los scripts se ejecutan con pipenv run python
 ├── perfil_peondeloto.md       diagnóstico, áreas de mejora, línea base y objetivos
 ├── metricas_pgn.py            script que calcula las métricas, sin dependencias
 ├── verificar_pgn.py           comprueba que los PGN enriquecidos están completos y bien formados
 ├── pyproject.toml              versión del software y configuración de pytest
 ├── tests/                       pruebas unitarias del núcleo con pytest
 ├── analisis_local/            herramientas de análisis local con Stockfish (opcional; instrucciones en README.md, sección 4)
-│   ├── analizar_local.py      analiza PGN con Stockfish y escribe el resultado en formato Lichess
+│   ├── analizar_local.py      analiza PGN con Stockfish (--profundidad 20 por defecto, --tiempo, --nodos) y escribe el resultado en formato Lichess
 │   ├── calibrar_con_lichess.py   compara el análisis local con el de Lichess
 │   ├── nucleo.py              lógica pura: evaluaciones, clasificación, lectura y escritura de PGN
-│   ├── validar_umbrales_offline.py   validación que no necesita motor
+│   ├── validar_umbrales_offline.py   validación que no necesita motor; solo usa partidas con Annotator "lichess.org"
 ├── prompts/
 │   ├── CHANGELOG.md           historial de versiones del prompt
 │   └── prompt_analisis_partidas_v0.txt ... _v4.txt   (vigente: v4)
@@ -57,7 +59,7 @@ ajedrez/
 | Cómo se explica cada partida | el prompt vigente |
 | Qué cambió entre versiones del prompt | `prompts/CHANGELOG.md` |
 
-**Numeración de prompts:** v0 (el original), v1, v2 y v3, sin huecos. Antes se llamaban v1 (el original), v2, v3 y v4; la tabla de equivalencias está en `prompts/CHANGELOG.md`. Si el usuario usa un nombre antiguo, tradúcelo con esa tabla.
+**Numeración de prompts:** de v0 (el original) a v4, sin huecos. Antes de la renumeración se llamaban v1 (el original), v2, v3 y v4; la tabla de equivalencias está en `prompts/CHANGELOG.md`. Si el usuario usa un nombre antiguo, tradúcelo con esa tabla.
 
 ---
 
@@ -148,10 +150,12 @@ El formato está pensado para importarse en un Estudio de Lichess sin fallos. Re
 
 **Análisis local** (`analisis_local/`):
 - Probado: la lógica pura (18 pruebas), la regla de clasificación contra Lichess (99,79 % y 97,87 %) y el flujo completo con un motor simulado sobre dos partidas reales.
-- **No probado:** la integración con python-chess y Stockfish reales, porque el entorno donde se construyó no tenía red ni motor. El usuario debe ejecutar `analizar_local.py --autotest` y `calibrar_con_lichess.py`.
+- **Ejecutado con motor real:** el usuario ya generó en `partidas_analizadas/` un primer lote de 4 partidas de `dvillaj131313` con Stockfish 19 a profundidad 20 (el motor se configura con `STOCKFISH_PATH` en `.env`).
+- **Sin medir:** el acuerdo del análisis local con el de Lichess. Falta ejecutar `calibrar_con_lichess.py` (y confirmar el `--autotest`) antes de fiarse de las cifras locales.
+- Cambios de la v1.1.0: profundidad por defecto 20 (a 16 había diferencias con Lichess por ruido y mates largos no vistos), opción `--tiempo`, y `ucinewgame` al empezar cada partida.
 
 **Pendiente:**
-- Ejecutar el autotest y la calibración con Stockfish real. Si el usuario pasa a análisis local, reanalizar las partidas antiguas y recalcular la línea base con el mismo método.
+- Ejecutar la calibración con Stockfish real (y confirmar el autotest). Si el usuario pasa a análisis local, reanalizar las partidas antiguas y recalcular la línea base con el mismo método.
 - Probar la v4 con una partida analizada: modo fichero, línea de indicadores y verificación con `verificar_pgn.py`.
 - Reescribir el apartado "veredicto honesto" del prompt sin signos de interrogación, que el modelo podría copiar y romper la regla de caracteres seguros.
 - Decidir si los "Patrones recurrentes" salen del prompt y se apoyan solo en el perfil.
@@ -193,6 +197,8 @@ El formato está pensado para importarse en un Estudio de Lichess sin fallos. Re
 - Un ejecutor que conoce los fallos de un prompt no demuestra que el prompt funcione. Para validarlo, hay que probarlo en un chat nuevo.
 - Un fichero que "parece nuevo" puede ser idéntico a uno anterior.
 - Sin red ni motor, separar la lógica pura y probarla con un motor simulado permite validar casi todo, pero no sustituye a una prueba con el motor real.
+- Validar la regla de etiquetas con PGN analizados en local es circular: sus etiquetas las genera la misma regla, aunque el `GameId` coincida con el de Lichess. Por eso `validar_umbrales_offline.py` filtra por `Annotator "lichess.org"`.
+- Entre partidas hay que enviar `ucinewgame` al motor para que no arrastre la tabla hash de la anterior.
 - Un PGN pegado en el chat puede llegar incompleto, recortado o mal transcrito. Entregarlo como fichero generado por código y verificarlo con `verificar_pgn.py` lo evita; la comprobación debe hacerse sobre el fichero, no sobre lo que el modelo cree haber escrito.
 
 ---

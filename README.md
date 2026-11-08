@@ -47,7 +47,7 @@ Las pruebas unitarias se ejecutan con `pytest` y están en `tests/`.
 ## 2. Estructura de carpetas
 
 ```
-ajedrez/
+chessia/
 ├── README.md, CONTEXTO_IA.md, perfil_peondeloto.md
 ├── CHANGELOG.md                 historial de versiones del software
 ├── pyproject.toml               versión del software y configuración de pytest
@@ -114,7 +114,7 @@ Para no pasar la ruta en cada ejecución, crea un fichero `.env` en la raíz del
 (debe apuntar al ejecutable de Stockfish):
 
 ```
-STOCKFISH_PATH=C:\WinBoard-4.8.0\stockfish
+STOCKFISH_PATH=C:\WinBoard-4.8.0\stockfish\stockfish-windows-x86-64-universal.exe
 ```
 
 Pipenv carga automáticamente las variables de `.env` al ejecutar con `pipenv run`. El fichero `.env` local
@@ -140,12 +140,13 @@ No requieren Stockfish.
 pipenv run python analisis_local/analizar_local.py partidas/peondeloto --salida partidas_analizadas
 ```
 
-Escribe un `<nombre>_analizado.pgn` por cada PGN de entrada. Las partidas que ya traen evaluaciones se copian sin cambios, salvo que se indique `--reanalizar`.
+Escribe un `<nombre>_analizado.pgn` por cada PGN de entrada. Las partidas que ya traen evaluaciones se copian sin cambios, salvo que se indique `--reanalizar`. Si se indican varios límites, manda este orden: `--nodos`, `--tiempo`, `--profundidad`. El motor recibe `ucinewgame` al empezar cada partida, así que no arrastra la tabla hash de la anterior.
 
 | Opción | Para qué sirve |
 |---|---|
-| `--profundidad N` | Profundidad por posición (por defecto 16). Más profundidad es más lento y más fiable. |
-| `--nodos N` | Límite de nodos por posición; sustituye a la profundidad. |
+| `--profundidad N` | Profundidad por posición (por defecto 20). Más profundidad es más lento y más fiable; con 16 las evaluaciones son más ruidosas y a veces no se ve un mate largo. |
+| `--tiempo S` | Segundos por posición; sustituye a la profundidad. |
+| `--nodos N` | Límite de nodos por posición; sustituye a la profundidad y al tiempo. |
 | `--hilos N` y `--hash MB` | Recursos del motor. Con 0 hilos se usa el valor por defecto del motor. |
 | `--reanalizar` | Rehace también las partidas que ya traen evaluaciones. |
 | `--maximo N` | Analiza como mucho N partidas; útil para medir el tiempo antes de procesar todas. |
@@ -176,13 +177,15 @@ pipenv run python analisis_local/validar_umbrales_offline.py partidas
 
 Con las 98 partidas analizadas por Lichess disponibles al construirlo, el acuerdo fue del 99,79 % en 5.657 jugadas con evaluaciones normales y del 97,87 % en 235 casos con mate (reglas aproximadas). Esto valida **la regla**, no el motor.
 
+Solo se usan partidas con `[Annotator "lichess.org"]`. Los PGN analizados en local se ignoran (el script dice cuántos), porque sus etiquetas las genera la propia regla y la validación sería circular, aunque tengan el mismo `GameId` que la partida original.
+
 **Comparar con Stockfish:** vuelve a analizar partidas que Lichess ya evaluó y compara los resultados jugada a jugada:
 
 ```
 pipenv run python analisis_local/calibrar_con_lichess.py partidas --maximo 10
 ```
 
-Muestra la diferencia de evaluación, el acuerdo de etiquetas y los blunders por partida. Si el acuerdo es bajo, prueba con más profundidad o con `--nodos`. Una vez elegido el ajuste, úsalo siempre igual para las partidas que quieras comparar.
+Muestra la diferencia de evaluación, el acuerdo de etiquetas y los blunders por partida. Si el acuerdo es bajo, prueba con más profundidad, con `--tiempo` o con `--nodos`. Una vez elegido el ajuste, úsalo siempre igual para las partidas que quieras comparar.
 
 ### Limitaciones y problemas frecuentes
 
@@ -191,14 +194,14 @@ Muestra la diferencia de evaluación, el acuerdo de etiquetas y los blunders por
 - Solo se analizan partidas estándar. Las variantes y las partidas con jugadas que `python-chess` no reconoce se copian sin analizar, con un aviso.
 - No se añade evaluación a la jugada que da mate, igual que en Lichess. Una partida que acaba por abandono sí lleva evaluación en la última jugada.
 - Si la mejor jugada del motor coincide con la jugada hecha pero la evaluación cae, la jugada se marca igual y no lleva variación; con suficiente profundidad es raro.
-- El núcleo (18 pruebas), las reglas contra las etiquetas de Lichess en 98 partidas y el flujo con un motor simulado se han probado. La parte que usa Stockfish y `python-chess` reales requiere que ejecutes `--autotest` y `calibrar_con_lichess.py` en tu equipo antes de fiarte de los resultados.
+- El núcleo (18 pruebas), las reglas contra las etiquetas de Lichess en 98 partidas y el flujo con un motor simulado se han probado. Ya se ha generado un primer lote local con Stockfish 19 a profundidad 20 (4 partidas de `dvillaj131313`), pero el acuerdo con Lichess del análisis local aún no está medido: ejecuta `--autotest` y `calibrar_con_lichess.py` en tu equipo antes de fiarte de los resultados.
 
 | Síntoma | Causa probable y solución |
 |---|---|
 | "Falta python-chess" | Ejecuta `pipenv install` desde la raíz del proyecto. |
 | "No encuentro Stockfish" | Indica la ruta con `--motor` o con la variable `STOCKFISH_PATH`. |
 | El autotest falla en "Checkmate is now unavoidable" | El motor no ve el mate: prueba con más profundidad o comprueba que es Stockfish. |
-| El análisis es muy lento | Baja `--profundidad`, sube `--hilos` o usa `--maximo` para trabajar por tandas. |
+| El análisis es muy lento | Baja `--profundidad`, fija `--tiempo` por posición, sube `--hilos` o usa `--maximo` para trabajar por tandas. |
 | "Jugada ilegal o no reconocida" | El PGN contiene una variante o está corrupto; la partida se copia sin analizar. |
 | Las métricas salen sin análisis | Comprueba que mediste `partidas_analizadas`, no la carpeta de originales. |
 
