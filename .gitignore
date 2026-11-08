@@ -1,3 +1,6 @@
 .pytest_cache
 Pipfile.lock
 .env
+/.pytest_cache
+/.vscode
+/.claude
