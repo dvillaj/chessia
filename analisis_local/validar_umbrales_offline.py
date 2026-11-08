@@ -44,19 +44,11 @@ def leer(rutas):
     return partidas, ignoradas
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("rutas", nargs="+")
-    a = ap.parse_args()
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-    partidas, ignoradas = leer(a.rutas)
-    if not partidas:
-        sys.exit("No se ha encontrado ninguna partida analizada por Lichess ([Annotator \"lichess.org\"]).")
-    etiquetas = ("ok", "Inaccuracy", "Mistake", "Blunder")
+def comparar(partidas):
+    """Devuelve (normal, mate): contadores de (etiqueta de Lichess, etiqueta calculada) por jugada."""
     normal = collections.Counter()
     mate = collections.Counter()
-    for gid, p in partidas.items():
+    for p in partidas.values():
         js = n.leer_jugadas(p["movimientos"])
         for i in range(1, len(js)):
             antes, despues = js[i - 1]["eval"], js[i]["eval"]
@@ -67,14 +59,33 @@ def main():
             nuestro = v["severidad"] if v else "ok"
             con_mate = antes[0] == "mate" or despues[0] == "mate"
             (mate if con_mate else normal)[(real, nuestro)] += 1
+    return normal, mate
+
+
+def acuerdo(c):
+    """Fraccion de jugadas en las que la etiqueta calculada coincide con la de Lichess (None si no hay casos)."""
+    total = sum(c.values())
+    return sum(v for (r, o), v in c.items() if r == o) / total if total else None
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("rutas", nargs="+")
+    a = ap.parse_args()
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    partidas, ignoradas = leer(a.rutas)
+    if not partidas:
+        sys.exit("No se ha encontrado ninguna partida analizada por Lichess ([Annotator \"lichess.org\"]).")
+    etiquetas = ("ok", "Inaccuracy", "Mistake", "Blunder")
+    normal, mate = comparar(partidas)
 
     def informe(titulo, c):
         total = sum(c.values())
         if not total:
             print(f"{titulo}: sin casos")
             return
-        bien = sum(v for (r, o), v in c.items() if r == o)
-        print(f"\n{titulo}: {total} jugadas, acuerdo {100 * bien / total:.2f} %")
+        print(f"\n{titulo}: {total} jugadas, acuerdo {100 * acuerdo(c):.2f} %")
         print("   Lichess \\ calculo   " + "  ".join(f"{e:>10}" for e in etiquetas))
         for r in etiquetas:
             print(f"   {r:<18}  " + "  ".join(f"{c.get((r, o), 0):>10}" for o in etiquetas))
