@@ -154,7 +154,11 @@ Si la partida no trae las cabeceras `ECO` y `Opening`, el analizador las añade 
 | `--reanalizar` | Rehace también las partidas que ya traen evaluaciones. |
 | `--maximo N` | Analiza como mucho N partidas; útil para medir el tiempo antes de procesar todas. |
 
-El fichero de salida se escribe partida a partida y en el orden original, así que puedes interrumpir con Ctrl+C: lo analizado hasta ese momento queda guardado. Conviene empezar con `--maximo 1` para medir cuánto tarda en tu equipo.
+Mientras analiza, el terminal muestra una barra de progreso con las partidas hechas, el porcentaje, el tiempo transcurrido, una estimación del tiempo restante (ETA) y cuántas partidas hay en curso. Cada partida terminada deja una línea con su contador (`OK [12/774] ...`). Si rediriges la salida a un fichero, no se dibuja la barra y solo quedan esas líneas.
+
+El fichero de salida se escribe partida a partida y en el orden original, así que puedes interrumpir con Ctrl+C: lo analizado hasta ese momento queda guardado. Lo mismo ocurre si el equipo se apaga.
+
+**Reanudar:** para continuar una tanda interrumpida, vuelve a lanzar **el mismo comando**. Las partidas que ya estén en el fichero de salida, completas, con las mismas jugadas y hechas con el mismo motor y el mismo límite, se reutilizan y solo se analiza el resto (la partida que quedó cortada se rehace). Si cambias el motor o el límite (`--profundidad`, `--tiempo` o `--nodos`), no se reutiliza nada, se avisa y el fichero se sobrescribe, porque no conviene mezclar métodos. `--hilos` y `--hash` no cuentan para esa comprobación. La reanudación supone que el PGN de entrada no ha cambiado de orden. Conviene empezar con `--maximo 1` para medir cuánto tarda en tu equipo.
 
 Los PGN originales de Lichess se quedan en `partidas/`; los analizados localmente van a `partidas_analizadas/`. Mide el progreso **solo sobre una de esas carpetas**, nunca mezcles originales y analizados: si hay dos versiones de la misma partida, el script puede quedarse con la que no tiene evaluaciones.
 

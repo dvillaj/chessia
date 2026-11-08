@@ -36,10 +36,11 @@ import argparse
 import glob
 import multiprocessing.util
 import os
+import re
 import shutil
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, wait
 
 import aperturas
 import nucleo as n
@@ -212,19 +213,65 @@ def _analizar_en_proceso(p):
     return texto, len(js), resumen_juicios(js), None, time.time() - t0
 
 
-def planificar(ficheros, args):
-    """Devuelve (plan, a_analizar): por fichero, su destino y sus (partida, accion); y las partidas a analizar, en orden."""
+def clave_partida(cab):
+    return cab.get("GameId") or cab.get("Site")
+
+
+def jugadas_san(p):
+    return [j["san"] for j in n.leer_jugadas(p["movimientos"])]
+
+
+def termina_con_resultado(p):
+    toks = re.sub(r"\{[^}]*\}", " ", p["movimientos"]).split()
+    return bool(toks) and toks[-1] in n.RESULTADOS
+
+
+def partidas_previas(destino, anotador):
+    """Partidas de una salida anterior hechas con este mismo ajuste: ({clave: partida}, las que usan otro ajuste)."""
+    if not os.path.isfile(destino):
+        return {}, 0
+    with open(destino, encoding="utf-8", errors="replace") as fh:
+        partidas = n.separar_partidas(fh.read())
+    validas, otro_ajuste = {}, 0
+    for p in partidas:
+        cab = dict(p["cabeceras"])
+        anot = cab.get("Annotator", "")
+        if not anot.startswith("analizar_local.py"):
+            continue
+        if anot != anotador:
+            otro_ajuste += 1
+        elif clave_partida(cab):
+            validas[clave_partida(cab)] = p
+    return validas, otro_ajuste
+
+
+def planificar(ficheros, args, anotador):
+    """
+    Devuelve (plan, a_analizar, reanudadas, otro_ajuste).
+    plan: por fichero, su destino y sus (partida, accion); a_analizar: las partidas a analizar, en orden.
+    Una partida ya presente en la salida anterior, completa, con las mismas jugadas y hecha con el mismo
+    motor y limite, se reutiliza (accion "reanudada") en lugar de analizarla otra vez.
+    """
     plan, a_analizar = [], []
+    reanudadas = otro_ajuste = 0
     for f in ficheros:
         with open(f, encoding="utf-8", errors="replace") as fh:
             partidas = n.separar_partidas(fh.read())
         destino = os.path.join(args.salida, os.path.splitext(os.path.basename(f))[0] + "_analizado.pgn")
+        previas, otras = partidas_previas(destino, anotador)
+        otro_ajuste += otras
         items = []
         for p in partidas:
-            if dict(p["cabeceras"]).get("Variant", "Standard") != "Standard":
+            cab = dict(p["cabeceras"])
+            previa = previas.get(clave_partida(cab))
+            if cab.get("Variant", "Standard") != "Standard":
                 accion = "variante"
             elif "%eval" in p["movimientos"] and not args.reanalizar:
                 accion = "ya_analizada"
+            elif previa and termina_con_resultado(previa) and jugadas_san(previa) == jugadas_san(p):
+                accion = "reanudada"
+                p = previa
+                reanudadas += 1
             elif args.maximo and len(a_analizar) >= args.maximo:
                 accion = "copiar"
             else:
@@ -232,7 +279,72 @@ def planificar(ficheros, args):
                 a_analizar.append(p)
             items.append((p, accion))
         plan.append((destino, items))
-    return plan, a_analizar
+    return plan, a_analizar, reanudadas, otro_ajuste
+
+
+def descripcion_motor(args, chess):
+    motor = crear_motor(args, chess)
+    try:
+        return motor.descripcion
+    finally:
+        motor.cerrar()
+
+
+def formatear_tiempo(segundos):
+    s = int(round(segundos))
+    return f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
+
+
+class Progreso:
+    """Barra de progreso en una sola linea. Si la salida no es un terminal, no dibuja nada."""
+
+    ANCHO = 28
+
+    def __init__(self, total, procesos, terminal=None):
+        self.total = total
+        self.procesos = procesos
+        self.t0 = time.time()
+        self.terminal = sys.stdout.isatty() if terminal is None else terminal
+        self._largo = 0
+
+    def texto(self, hechas):
+        fraccion = hechas / self.total if self.total else 1.0
+        lleno = int(self.ANCHO * fraccion)
+        transcurrido = time.time() - self.t0
+        eta = formatear_tiempo((self.total - hechas) * transcurrido / hechas) if hechas else "--:--:--"
+        en_curso = min(self.procesos, self.total - hechas)
+        return (f"[{'#' * lleno}{'-' * (self.ANCHO - lleno)}] {hechas}/{self.total} {100 * fraccion:.1f}%"
+                f"  transcurrido {formatear_tiempo(transcurrido)}  ETA {eta}  en curso {en_curso}")
+
+    def actualizar(self, hechas):
+        if not self.terminal or not self.total:
+            return
+        txt = self.texto(hechas)
+        sys.stdout.write("\r" + txt.ljust(self._largo))
+        sys.stdout.flush()
+        self._largo = len(txt)
+
+    def linea(self, texto, hechas):
+        """Imprime una linea de registro sin romper la barra, y la vuelve a dibujar debajo."""
+        if self.terminal and self._largo:
+            sys.stdout.write("\r" + " " * self._largo + "\r")
+        print(texto, flush=True)
+        self.actualizar(hechas)
+
+    def cerrar(self):
+        if self.terminal and self._largo:
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+            self._largo = 0
+
+
+def esperar(futuro, futuros, progreso):
+    """Espera el resultado de un futuro y mientras tanto refresca la barra cada segundo."""
+    while True:
+        progreso.actualizar(sum(f.done() for f in futuros))
+        if futuro.done():
+            return futuro.result()
+        wait([futuro], timeout=1)
 
 
 def escribir_partida(out, texto):
@@ -248,18 +360,32 @@ def procesar(args):
     os.makedirs(args.salida, exist_ok=True)
     if not base_aperturas_disponible():
         print("Aviso: no se encuentra la base de aperturas (analisis_local/base_aperturas); no se anadiran ECO ni Opening")
-    plan, a_analizar = planificar(ficheros, args)
+    anotador = f"analizar_local.py con {descripcion_motor(args, importar_chess())}"
+    plan, a_analizar, reanudadas, otro_ajuste = planificar(ficheros, args, anotador)
     procesos = max(1, min(args.procesos, len(a_analizar)))
-    print(f"Motor: {ruta_motor} | limite: {texto_limite(args)} | {len(a_analizar)} partidas a analizar con {procesos} proceso(s)")
+    ya_analizadas = sum(1 for _, items in plan for _, accion in items if accion == "ya_analizada")
+    print(f"Motor: {ruta_motor} | limite: {texto_limite(args)}")
+    print(f"{len(a_analizar)} partidas a analizar con {procesos} proceso(s)")
+    if reanudadas:
+        print(f"{reanudadas} partidas ya estaban analizadas con este mismo motor y limite en una ejecucion anterior: se reutilizan")
+    if otro_ajuste:
+        print(f"AVISO: {otro_ajuste} partidas de la salida anterior se hicieron con otro motor o limite y se rehacen; "
+              f"el fichero se sobrescribe")
+    if ya_analizadas:
+        print(f"{ya_analizadas} partidas ya traen analisis y se copian sin cambios (usa --reanalizar para rehacerlas)")
     ex = None
-    resultados = iter(())
+    futuros = []
     if a_analizar:
         ex = ProcessPoolExecutor(max_workers=procesos, initializer=_iniciar_proceso, initargs=(args,))
-        resultados = ex.map(_analizar_en_proceso, a_analizar)
-    total = analizadas = 0
+        futuros = [ex.submit(_analizar_en_proceso, p) for p in a_analizar]
+    siguiente = iter(futuros)
+    progreso = Progreso(len(a_analizar), procesos)
+    total = analizadas = consumidas = 0
     interrumpido = False
     t_ini = time.time()
+    hechas = lambda: sum(f.done() for f in futuros)
     try:
+        progreso.actualizar(0)
         for destino, items in plan:
             with open(destino, "w", encoding="utf-8") as out:
                 for p, accion in items:
@@ -267,30 +393,34 @@ def procesar(args):
                     gid = cab.get("GameId", "?")
                     total += 1
                     if accion == "variante":
-                        print(f"-  {gid}: variante {cab['Variant']}, se copia sin analizar")
+                        progreso.linea(f"-  {gid}: variante {cab['Variant']}, se copia sin analizar", hechas())
                         escribir_partida(out, p["texto"])
-                    elif accion == "ya_analizada":
-                        print(f"=  {gid}: ya trae analisis, se copia sin cambios (usa --reanalizar para rehacerlo)")
-                        escribir_partida(out, p["texto"])
-                    elif accion == "copiar":
+                    elif accion in ("ya_analizada", "copiar", "reanudada"):
                         escribir_partida(out, p["texto"])
                     else:
-                        texto, semijugadas, resumen, error, segundos = next(resultados)
+                        texto, semijugadas, resumen, error, segundos = esperar(next(siguiente), futuros, progreso)
+                        consumidas += 1
+                        marca = f"[{consumidas}/{len(a_analizar)}]"
                         if error:
-                            print(f"X  {gid}: {error}; se copia sin analizar")
+                            progreso.linea(f"X  {marca} {gid}: {error}; se copia sin analizar", hechas())
                             escribir_partida(out, p["texto"])
                             continue
                         analizadas += 1
                         escribir_partida(out, texto)
-                        print(f"OK {gid}: {semijugadas} semijugadas en {segundos:.0f} s | {resumen}", flush=True)
-            print(f"-> {destino}")
+                        progreso.linea(f"OK {marca} {gid}: {semijugadas} semijugadas en {segundos:.0f} s | {resumen}", hechas())
+            progreso.linea(f"-> {destino}", hechas())
     except KeyboardInterrupt:
         interrumpido = True
+        progreso.cerrar()
         print("\nInterrumpido. Lo analizado hasta ahora se ha guardado.")
     finally:
+        progreso.cerrar()
         if ex:
             ex.shutdown(wait=not interrumpido, cancel_futures=True)
-    print(f"\n{analizadas} partidas analizadas de {total} en {time.time() - t_ini:.0f} s")
+    transcurrido = time.time() - t_ini
+    media = f", {transcurrido / analizadas:.0f} s por partida de media" if analizadas else ""
+    reutilizadas = f" ({reanudadas} reutilizadas de una ejecucion anterior)" if reanudadas else ""
+    print(f"\n{analizadas} partidas analizadas de {total} en {formatear_tiempo(transcurrido)}{media}{reutilizadas}")
 
 
 def autotest(args, chess):

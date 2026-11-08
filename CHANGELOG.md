@@ -13,6 +13,13 @@ se mantiene por separado en [`prompts/CHANGELOG.md`](prompts/CHANGELOG.md).
 - `analizar_local.py` acepta `--procesos N` para analizar N partidas a la vez, cada una con su propio Stockfish.
   La salida no depende de N. El fichero de salida se escribe partida a partida, así que una interrupción
   no pierde lo ya analizado.
+- `analizar_local.py` reanuda: al relanzar el mismo comando reutiliza las partidas de la salida anterior que estén
+  completas, tengan las mismas jugadas y se hicieran con el mismo motor y límite, y solo analiza el resto. Con otro
+  motor o límite avisa y lo rehace todo. Antes, relanzar vaciaba el fichero y empezaba de cero.
+  Pruebas en `tests/test_reanudar.py`.
+- `analizar_local.py` muestra una barra de progreso (hechas, porcentaje, tiempo transcurrido, ETA y partidas en
+  curso) y un contador en la línea de cada partida. Las partidas que ya traen análisis se resumen en una
+  sola línea al empezar. Pruebas en `tests/test_progreso.py`.
 - `calibrar_con_lichess.py` acepta `--procesos N` para comparar N partidas a la vez, cada una con su propio
   Stockfish, y `--tiempo`.
 - Pruebas en `tests/test_aperturas.py`.
