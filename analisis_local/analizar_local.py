@@ -13,8 +13,14 @@ REQUISITOS  python-chess (pipenv install desde la raíz) y un ejecutable de Stoc
 
 USO
   pipenv run python analisis_local/analizar_local.py partidas/peondeloto --motor /ruta/a/stockfish
-  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --profundidad 18 --salida partidas_analizadas
+  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --profundidad 22 --salida partidas_analizadas
+  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --tiempo 2 --hilos 4
+  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --nodos 2000000
   pipenv run python analisis_local/analizar_local.py --autotest --motor /ruta/a/stockfish
+
+LIMITE DE ANALISIS (por posicion). Si se dan varios, manda este orden: --nodos, --tiempo, --profundidad.
+Por defecto: profundidad 20. A profundidad 16 las evaluaciones son mas ruidosas y a veces no se ve un mate
+largo, lo que provoca diferencias con el analisis de Lichess.
 
 El motor se busca, por este orden, en --motor, en la variable de entorno STOCKFISH_PATH, en el PATH y en
 las rutas habituales. Las partidas que ya traen evaluaciones se copian sin cambios, salvo con --reanalizar.
@@ -33,6 +39,8 @@ RUTAS_HABITUALES = [
     "/opt/homebrew/bin/stockfish", "/usr/local/bin/stockfish", "/usr/games/stockfish", "/usr/bin/stockfish",
     r"C:\Program Files\Stockfish\stockfish.exe",
 ]
+
+PROFUNDIDAD_POR_DEFECTO = 20
 
 
 class AjedrezChess:
@@ -68,7 +76,7 @@ class AjedrezChess:
 class MotorUCI:
     """Envoltorio de un motor UCI (Stockfish) con la interfaz que usa nucleo.analizar_partida."""
 
-    def __init__(self, chess, ruta, limite_txt, depth=None, nodes=None, hilos=0, hash_mb=0):
+    def __init__(self, chess, ruta, limite_txt, depth=None, nodes=None, tiempo=None, hilos=0, hash_mb=0):
         import chess.engine
         self.chess = chess
         self.motor = chess.engine.SimpleEngine.popen_uci(ruta)
@@ -78,12 +86,23 @@ class MotorUCI:
         if hash_mb:
             cfg["Hash"] = hash_mb
         self.motor.configure({k: v for k, v in cfg.items() if k in self.motor.options})
-        self.limite = chess.engine.Limit(depth=depth) if nodes is None else chess.engine.Limit(nodes=nodes)
+        if nodes:
+            self.limite = chess.engine.Limit(nodes=nodes)
+        elif tiempo:
+            self.limite = chess.engine.Limit(time=tiempo)
+        else:
+            self.limite = chess.engine.Limit(depth=depth or PROFUNDIDAD_POR_DEFECTO)
         self.nombre = self.motor.id.get("name", "motor UCI")
         self.descripcion = f"{self.nombre}, {limite_txt}"
+        self._juego = object()
+
+    def nueva_partida(self):
+        """Marca el inicio de una partida: python-chess envia ucinewgame y Stockfish limpia su hash."""
+        self._juego = object()
 
     def evaluar(self, t):
-        info = self.motor.analyse(t, self.limite, info=self.chess.engine.INFO_SCORE | self.chess.engine.INFO_PV)
+        info = self.motor.analyse(t, self.limite, game=self._juego,
+                                  info=self.chess.engine.INFO_SCORE | self.chess.engine.INFO_PV)
         p = info["score"].white()
         ev = ("mate", p.mate()) if p.is_mate() else ("cp", p.score())
         return {"eval": ev, "pv": list(info.get("pv", []))}
@@ -115,8 +134,13 @@ def buscar_motor(explicito):
 
 def crear_motor(args, chess):
     ruta = buscar_motor(args.motor)
-    limite_txt = f"{args.nodos} nodos" if args.nodos else f"profundidad {args.profundidad}"
-    return MotorUCI(chess, ruta, limite_txt, depth=args.profundidad, nodes=args.nodos,
+    if args.nodos:
+        limite_txt = f"{args.nodos} nodos"
+    elif args.tiempo:
+        limite_txt = f"{args.tiempo:g} s por posicion"
+    else:
+        limite_txt = f"profundidad {args.profundidad}"
+    return MotorUCI(chess, ruta, limite_txt, depth=args.profundidad, nodes=args.nodos, tiempo=args.tiempo,
                     hilos=args.hilos, hash_mb=args.hash_mb)
 
 
@@ -140,6 +164,7 @@ def resumen_juicios(jugadas):
 
 def analizar_texto_partida(p, ajedrez, motor):
     jugadas = n.leer_jugadas(p["movimientos"])
+    motor.nueva_partida()
     n.analizar_partida(jugadas, ajedrez, motor)
     cab = [(k, v) for k, v in p["cabeceras"] if k != "Annotator"] + [("Annotator", f"analizar_local.py con {motor.descripcion}")]
     return n.escribir_partida(cab, jugadas, p["resultado"]), jugadas
@@ -207,6 +232,7 @@ def autotest(args, chess):
         sans = ["e4", "e5", "Qh5", "Nc6", "Bc4", "Nf6", "Qxf7#"]
         js = [{"san": s, "clk": None} for s in sans]
         t0 = time.time()
+        motor.nueva_partida()
         n.analizar_partida(js, ajedrez, motor)
         print(f"Analizada en {time.time() - t0:.1f} s")
         fallos = []
@@ -238,8 +264,10 @@ def main():
     ap.add_argument("entradas", nargs="*", help="ficheros o carpetas con PGN")
     ap.add_argument("--salida", default="partidas_analizadas", help="carpeta de salida")
     ap.add_argument("--motor", help="ruta del ejecutable de Stockfish")
-    ap.add_argument("--profundidad", type=int, default=16, help="profundidad de analisis (por defecto 16)")
-    ap.add_argument("--nodos", type=int, help="limite de nodos por posicion; sustituye a la profundidad")
+    ap.add_argument("--profundidad", type=int, default=PROFUNDIDAD_POR_DEFECTO,
+                    help=f"profundidad de analisis (por defecto {PROFUNDIDAD_POR_DEFECTO})")
+    ap.add_argument("--nodos", type=int, help="limite de nodos por posicion; sustituye a la profundidad y al tiempo")
+    ap.add_argument("--tiempo", type=float, help="segundos por posicion; sustituye a la profundidad")
     ap.add_argument("--hilos", type=int, default=0, help="hilos del motor (0 = valor por defecto del motor)")
     ap.add_argument("--hash", type=int, default=256, dest="hash_mb", help="memoria hash en MB (por defecto 256)")
     ap.add_argument("--reanalizar", action="store_true", help="rehace tambien las partidas que ya traen evaluaciones")

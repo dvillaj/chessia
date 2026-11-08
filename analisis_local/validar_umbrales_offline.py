@@ -6,6 +6,10 @@ Toma PGN que Lichess ya ha analizado (con %eval y comentarios Inaccuracy, Mistak
 nucleo.valorar a las evaluaciones de Lichess y compara con las etiquetas que Lichess puso. NO necesita
 motor ni python-chess: valida solo la regla de clasificacion, no el motor.
 
+Solo se usan partidas con [Annotator "lichess.org"]. Asi se ignoran los PGN analizados en local
+(analizar_local.py), cuyas etiquetas las genera nucleo.valorar y harian la validacion circular, aunque
+tengan el mismo GameId que la partida original.
+
 Uso:  python validar_umbrales_offline.py partidas/peondeloto partidas/dvillaj
 """
 import argparse
@@ -16,19 +20,28 @@ import sys
 
 import nucleo as n
 
+ANOTADOR_LICHESS = "lichess.org"
+
 
 def leer(rutas):
     ficheros = []
     for r in rutas:
         ficheros += sorted(glob.glob(os.path.join(r, "**", "*.pgn"), recursive=True)) if os.path.isdir(r) else [r]
     partidas = {}
+    ignoradas = 0
     for f in ficheros:
         with open(f, encoding="utf-8", errors="replace") as fh:
             for p in n.separar_partidas(fh.read()):
                 cab = dict(p["cabeceras"])
-                if "%eval" in p["movimientos"]:
-                    partidas[cab.get("GameId", f)] = p
-    return partidas
+                if "%eval" not in p["movimientos"]:
+                    continue
+                if cab.get("Annotator") != ANOTADOR_LICHESS:
+                    ignoradas += 1
+                    continue
+                # clave que no se pisa: GameId, si no Site, si no fichero + posicion
+                clave = cab.get("GameId") or cab.get("Site") or f"{f}#{len(partidas)}"
+                partidas[clave] = p
+    return partidas, ignoradas
 
 
 def main():
@@ -37,9 +50,9 @@ def main():
     a = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    partidas = leer(a.rutas)
+    partidas, ignoradas = leer(a.rutas)
     if not partidas:
-        sys.exit("No se ha encontrado ninguna partida con evaluaciones de Lichess.")
+        sys.exit("No se ha encontrado ninguna partida analizada por Lichess ([Annotator \"lichess.org\"]).")
     etiquetas = ("ok", "Inaccuracy", "Mistake", "Blunder")
     normal = collections.Counter()
     mate = collections.Counter()
@@ -67,6 +80,8 @@ def main():
             print(f"   {r:<18}  " + "  ".join(f"{c.get((r, o), 0):>10}" for o in etiquetas))
 
     print(f"Partidas con evaluaciones de Lichess: {len(partidas)}")
+    if ignoradas:
+        print(f"Partidas con evaluaciones pero no analizadas por Lichess (ignoradas): {ignoradas}")
     informe("Evaluaciones normales", normal)
     informe("Casos con mate (reglas aproximadas)", mate)
 
