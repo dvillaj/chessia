@@ -2,81 +2,62 @@
 
 Objetivo: pasar de ~1570 a 1850 en partidas rápidas 15+10 con la cuenta **peondeloto**, usando solo herramientas de Lichess y midiendo el progreso con datos.
 
-El sistema tiene **tres piezas** que se reparten el trabajo:
-
 | Pieza | Fichero | Qué hace |
 |---|---|---|
-| El contexto | `perfil_peondeloto.md` | Tus puntos fuertes, áreas de mejora (códigos A1-A7), línea base y objetivos. |
-| El entrenador | `prompt_analisis_partidas_v3.txt` | Explica cada partida y devuelve un PGN enriquecido para Lichess Study, con una línea de indicadores por partida. |
+| El contexto | `perfil_peondeloto.md` | Puntos fuertes, áreas de mejora (A1-A7), línea base y objetivos. |
+| El entrenador | `prompts/prompt_analisis_partidas_v4.txt` | Explica cada partida y devuelve un PGN enriquecido para Lichess Study. |
 | El medidor | `metricas_pgn.py` | Calcula las métricas de progreso. Los números los saca el script, no el modelo. |
+| El verificador | `verificar_pgn.py` | Comprueba que cada PGN enriquecido tiene todas las jugadas del original y cumple el formato. |
+| El analizador local | `entorno/` | Analiza tus partidas con Stockfish en tu ordenador (opcional). Ver `entorno/README_ENTORNO.md`. |
 
-> **Idea clave:** el prompt explica, el script mide. No le pidas a un modelo que haga aritmética de relojes ni que recuerde tus cifras anteriores: para eso están el script y el perfil. Desde la v3 el prompt también escribe una línea de indicadores por partida, pero solo si los calcula con código o los copia de la fila del script; los agregados semanales salen siempre del script.
+> **Idea clave:** el prompt explica, el script mide. No le pidas a un modelo aritmética de relojes ni que recuerde tus cifras anteriores.
+
+Si usas un modelo de IA para mantener el sistema, pásale también `CONTEXTO_IA.md`.
 
 ---
 
 ## 1. Resumen en 7 pasos
 
 1. Juega 15+10 en peondeloto siguiendo las reglas del perfil.
-2. En Lichess, **pide el análisis del ordenador** de tus partidas.
-3. Exporta las partidas en PGN con **relojes y evaluaciones**.
-4. Guarda el PGN en `partidas/peondeloto/`.
-5. Ejecuta `metricas_pgn.py` y mira la tabla de progreso.
-6. Abre un chat con Claude, pega el prompt, adjunta `perfil_peondeloto.md` y los PGN nuevos.
-7. Copia cada bloque PGN que devuelve a un **Estudio de Lichess** y repásalo.
+2. Consigue evaluaciones: pide el análisis en Lichess o analiza en local (`entorno/`).
+3. Guarda los PGN, con relojes y evaluaciones, en `partidas/peondeloto/` (o en `partidas_analizadas/` si los analizas en local).
+4. Ejecuta `metricas_pgn.py` y mira la tabla de progreso.
+5. En un chat con Claude, pega el prompt y adjunta `perfil_peondeloto.md` y los PGN nuevos.
+6. Guarda en `analisis/` los PGN enriquecidos y ejecuta `verificar_pgn.py`.
+7. Importa cada PGN verificado en un **Estudio de Lichess** y repásalo.
+
+**Requisitos:** Python 3.8 o superior (`python --version`; en Windows, `py`), cuenta de Lichess, acceso a Claude y un editor de texto. El análisis local necesita además python-chess y Stockfish (ver su guía).
 
 ---
 
-## 2. Requisitos
-
-- **Python 3.8 o superior** (el script no necesita instalar nada más). Comprueba con `python --version`. En Windows puede ser `py --version`.
-- Cuenta de **Lichess** (peondeloto) para exportar y pedir análisis.
-- Acceso a **Claude** para el prompt.
-- Un editor de texto cualquiera.
-
----
-
-## 3. Estructura de carpetas
-
-Crea una carpeta de trabajo, por ejemplo `ajedrez/`:
+## 2. Estructura de carpetas
 
 ```
 ajedrez/
-├── README.md                       este documento
-├── perfil_peondeloto.md            contexto: fuertes, áreas de mejora, línea base
-├── prompt_analisis_partidas_v3.txt el prompt (versión actual)
-├── CHANGELOG_prompt.md             historial de versiones del prompt
-├── metricas_pgn.py                 el script de métricas
-├── partidas/
-│   └── peondeloto/                 tus exportaciones de Lichess (.pgn)
-│       ├── lichess_peondeloto_2026-11-03.pgn
-│       └── lichess_peondeloto_2026-11-05.pgn
-├── analisis/                       los PGN enriquecidos que devuelve Claude
-└── progreso/                       los CSV que genera el script
+├── README.md, CONTEXTO_IA.md, perfil_peondeloto.md
+├── metricas_pgn.py              métricas de progreso
+├── verificar_pgn.py             comprobación de los PGN enriquecidos
+├── entorno/                     análisis local con Stockfish (opcional)
+├── prompts/
+│   ├── CHANGELOG.md             historial de versiones
+│   └── prompt_analisis_partidas_v0.txt ... _v4.txt   (la vigente es v4)
+├── partidas/peondeloto/         exportaciones de Lichess (.pgn), sin tocar
+├── partidas_analizadas/         PGN analizados en local (opcional)
+├── analisis/                    PGN enriquecidos que entrega Claude, uno por partida
+└── progreso/                    CSV que genera el script de métricas
 ```
 
-Conserva siempre los PGN originales: son tu archivo. Claude **no guarda tus ficheros** entre conversaciones, así que lo que no esté en tu carpeta se pierde.
+Conserva siempre los PGN originales. Claude **no guarda tus ficheros** entre conversaciones.
 
 ---
 
-## 4. Conseguir buenos PGN de Lichess
+## 3. Conseguir PGN con análisis y relojes
 
-Sin análisis del ordenador no hay errores ni blunders que medir. Sin relojes no hay gestión del tiempo. Por eso importa cómo exportas.
+Sin análisis no hay errores que medir y sin relojes no hay gestión del tiempo.
 
-### 4.1 Pedir el análisis
-
-En cada partida terminada, abre su página y pulsa el botón para **solicitar el análisis del ordenador** (hace falta estar con tu sesión iniciada). Lichess puede limitar cuántos análisis se pueden pedir seguidos, así que conviene pedirlos poco después de jugar.
-
-Consejo: pídelo para todas las partidas de 15+10, no solo para las que perdiste. Para medir si mejoras necesitas también las ganadas.
-
-### 4.2 Exportar desde la web
-
-Abre la página de exportación: `https://lichess.org/games/export/peondeloto`. Marca las opciones para incluir **tiempos de reloj** y **evaluaciones o análisis**, y filtra por fechas, ritmo o partidas analizadas si lo necesitas. Los nombres exactos de las opciones pueden cambiar; si dudas, mira la ayuda de esa página.
-
-El fichero se llama algo como `lichess_peondeloto_2026-11-05.pgn`. Guárdalo en `partidas/peondeloto/`.
-
-### 4.2 bis. Exportar con la API (alternativa)
-
-Desde una terminal, con `curl`:
+**Opción A: análisis de Lichess**
+- En la página de cada partida terminada, pulsa el botón para **solicitar el análisis del ordenador**. Lichess puede limitar los análisis seguidos, así que conviene pedirlos pronto. Pídelo en **todas** las partidas de 15+10, no solo en las perdidas.
+- Exporta desde `https://lichess.org/games/export/peondeloto` marcando relojes y evaluaciones (los nombres exactos de las opciones pueden cambiar). O con la API:
 
 ```
 curl -H "Accept: application/x-chess-pgn" \
@@ -84,21 +65,15 @@ curl -H "Accept: application/x-chess-pgn" \
   -o partidas/peondeloto/lichess_peondeloto_2026-11-10.pgn
 ```
 
-Los parámetros `analysed`, `clocks`, `evals`, `opening` y `max` están documentados en `https://lichess.org/api`. Compruébalos allí por si cambian.
+Los parámetros están documentados en `https://lichess.org/api`; compruébalos allí. `perfType=rapid` incluye 10+0 y 15+10; el filtro exacto se hace luego con `--ritmo 900+10`.
 
-> `perfType=rapid` incluye tanto 10+0 como 15+10. El filtro por ritmo exacto lo haces después con el script (`--ritmo 900+10`).
+**Opción B: análisis local** con Stockfish, sin límites de Lichess y para todas tus partidas. Está en `entorno/`.
 
-### 4.3 Cómo comprobar que el PGN sirve
-
-Abre el fichero con un editor y busca `%eval` y `%clk`. Si no aparecen, el PGN no trae evaluaciones o relojes y hay que exportarlo de nuevo.
-
-Si exportas varias veces con partidas repetidas, no pasa nada: el script elimina duplicados por `GameId`.
+**Comprobación:** abre el PGN y busca `%eval` y `%clk`. Si no aparecen, falta análisis o relojes. Las partidas repetidas entre exportaciones no dan problemas: el script elimina duplicados por `GameId`. Mide siempre sobre **una sola versión** de cada partida.
 
 ---
 
-## 5. Medir tu progreso con `metricas_pgn.py`
-
-### 5.1 Ejecutarlo
+## 4. Medir tu progreso con `metricas_pgn.py`
 
 Desde la carpeta `ajedrez/`:
 
@@ -106,133 +81,85 @@ Desde la carpeta `ajedrez/`:
 python metricas_pgn.py partidas/peondeloto --usuario peondeloto --ritmo 900+10 --base-hasta 2026-11-03 --csv progreso/progreso_peondeloto.csv
 ```
 
-En Windows, si `python` no funciona, usa `py` en su lugar.
+`--base-hasta` marca la fecha hasta la que las partidas forman el grupo **BASE**; las posteriores se agrupan por semana. Sin `--usuario` usa el nombre que más aparece.
 
-| Opción | Para qué sirve |
-|---|---|
-| `partidas/peondeloto` | Carpeta con PGN (se leen todos los `.pgn`) o uno o varios ficheros. |
-| `--usuario` | Tu nombre en Lichess. Si no lo pones, usa el que más aparece. |
-| `--ritmo 900+10` | Solo cuenta partidas 15+10. |
-| `--base-hasta 2026-11-03` | Las partidas hasta esa fecha forman el grupo **BASE**; las posteriores se agrupan por semana. |
-| `--csv` | Dónde guardar el CSV con una fila por partida. |
-
-### 5.2 Leer la tabla
-
-Imprime una tabla en markdown con una fila por periodo (BASE y semanas) y una fila final **OBJETIVO**:
+Imprime una tabla con una fila por periodo y una fila final **OBJETIVO**. Compara siempre con BASE y con OBJETIVO:
 
 | Columna | Qué mide |
 |---|---|
 | Puntos % | Resultado (victoria = 1, tablas = 0,5). |
-| Mediana s/jugada | Segundos que tardas en una jugada típica. |
-| % reloj usado | Tiempo pensado respecto al tiempo base. |
-| Blunders/partida y Errores/partida | Solo en partidas con análisis. |
-| Analizadas | Cuántas partidas del periodo traen análisis. |
+| Mediana s/jugada | Segundos en una jugada típica. |
+| % tiempo disponible usado | Tiempo pensado sobre el tiempo base más los incrementos. |
+| Blunders y Errores por partida | Solo en partidas analizadas (columna Analizadas). |
 | Derrotas cortas | Derrotas en menos de 25 jugadas. |
-| Ventajas tiradas | Partidas analizadas en las que llegaste a +3,0 o más y no ganaste. |
-| Racha derrotas | Mayor racha seguida de derrotas. |
-| Máx. partidas/día | Mayor número de partidas en un solo día. |
+| Ventajas tiradas | Partidas analizadas en las que llegaste a +3,0 y no ganaste. |
+| Racha derrotas, Máx. partidas/día | Mayor racha de derrotas y mayor número de partidas en un día. |
 
-Compara siempre cada fila con **BASE** y con **OBJETIVO**. Las definiciones exactas están al principio del script.
+Cautelas: con menos de unas 10 partidas analizadas por periodo, las cifras de errores varían mucho; usa periodos más largos. Los objetivos son propuestas y se cambian en el diccionario `OBJETIVOS` del script.
 
-Dos cautelas:
-- Con pocas partidas analizadas por periodo (como regla orientativa, menos de 10) las cifras de errores varían mucho de una semana a otra. Usa periodos más largos.
-- Los objetivos del script son propuestas de partida, no referencias externas. Cámbialos en el diccionario `OBJETIVOS` si te parecen poco realistas.
-
-### 5.3 Abrir el CSV
-
-El CSV usa `;` como separador y coma decimal para abrirse directamente en Excel en español. Si lo lees con pandas: `pd.read_csv(ruta, sep=";", decimal=",")`.
+El CSV usa `;` y coma decimal para abrirse en Excel en español (en pandas: `sep=";", decimal=","`).
 
 ---
 
-## 6. Analizar partidas con el prompt
+## 5. Analizar partidas con el prompt
 
-### 6.1 Preparar el chat
+1. Abre un chat nuevo, pega `prompts/prompt_analisis_partidas_v4.txt` y adjunta `perfil_peondeloto.md` y los PGN (cada partida se procesa por separado). Si quieres, pega también la tabla de progreso.
+2. Si el chat no tiene entorno de código, pega la fila del CSV de cada partida: así los indicadores coinciden con los del script. Sin código ni fila, el prompt omite esa línea.
+3. Recibes **un PGN por partida**: como fichero descargable `AAAA-MM-DD_color_vs_rival_GameId.pgn` si el chat puede crear ficheros, o como bloque de código si no. Guárdalos en `analisis/`.
+4. Antes de importar, comprueba que están completos:
 
-1. Abre un chat nuevo con Claude.
-2. Pega el contenido de `prompt_analisis_partidas_v3.txt`.
-3. Adjunta `perfil_peondeloto.md` y los PGN que quieras analizar (uno o varios; cada partida se procesa por separado).
-4. Si quieres, pega también la tabla de progreso más reciente.
-5. Opcional: si el chat no tiene entorno de código, pega la fila del CSV de cada partida. Así los indicadores de la partida coinciden con los del script; sin código y sin esa fila, el prompt omite la línea de indicadores.
+```
+python verificar_pgn.py --originales partidas/peondeloto --enriquecidos analisis
+```
 
-Cada chat nuevo parte de cero. Si no quieres repetir el paso 2 cada vez, puedes crear un **Proyecto** en Claude y guardar ahí el prompt como instrucciones y el perfil como conocimiento. Según la ayuda oficial, los proyectos están disponibles para todos los usuarios y el contexto no pasa de un chat a otro dentro del proyecto salvo que lo añadas al conocimiento del proyecto. Cuando actualices el perfil, vuelve a subir la versión nueva.
+Imprime `OK` o `X` con los problemas: jugadas que faltan, cabeceras o relojes cambiados, caracteres prohibidos, límites de palabras. **No comprueba la legalidad** de las variaciones ni de las FEN. Si dice `FALTAN JUGADAS`, descarta ese PGN y pide generarlo de nuevo.
 
-### 6.2 Qué devuelve
+5. En Lichess crea un **Estudio**, añade un capítulo por partida e importa el PGN (sube el fichero o pega su contenido). El título de la partida va en la primera línea del comentario inicial.
 
-Un bloque de código PGN **por partida**, sin texto fuera de los bloques. Cada uno incluye:
+Cada PGN lleva un briefing inicial, comentarios en los momentos clave con variaciones de hasta 3 semijugadas, y un debriefing final con lecciones, tabla de tiempos, indicadores de la partida, comparativa de patrones y 2 o 3 posiciones FEN.
 
-- Un **briefing** inicial (menos de 250 palabras): origen de los datos, diagnóstico de apertura, veredicto honesto y ajuste semanal.
-- Jugadas con comentarios solo en los momentos clave, con NAGs y la mejor alternativa como variación de hasta 3 jugadas.
-- Un **debriefing** final: reglas de oro, tabla de tiempos, una línea de indicadores de la partida, comparativa de patrones y 2 o 3 posiciones en FEN para repaso.
+**Calidad:** con evaluaciones de Stockfish en el PGN, las evaluaciones y variaciones son fiables. Sin ellas, el prompt aplica el Plan B (evaluaciones estimadas por el modelo): úsalo solo como orientación. Las evaluaciones del PGN original no se conservan en el enriquecido.
 
-### 6.3 Llevarlo a un Estudio de Lichess
+Cada chat nuevo parte de cero. Si no quieres repetir el paso 1, crea un **Proyecto** en Claude con el prompt como instrucciones y el perfil como conocimiento. Según la ayuda oficial, los proyectos están disponibles para todos los usuarios y el contexto no pasa de un chat a otro salvo que lo añadas al conocimiento del proyecto; cuando actualices el perfil, súbelo de nuevo.
 
-1. En Lichess crea un **Estudio** (por ejemplo, "Mis partidas 15+10").
-2. Añade un capítulo nuevo e importa el PGN pegando el contenido del bloque.
-3. Repite por cada partida. Guarda también el bloque en `analisis/` como copia.
-
-El título de cada partida va como primera línea del comentario inicial, así que puedes usarlo como nombre del capítulo.
-
-### 6.4 Qué esperar de la calidad
-
-- **Con evaluaciones de Stockfish** en el PGN, las evaluaciones y variaciones salen del motor y son fiables.
-- **Sin evaluaciones**, el prompt aplica el Plan B: evaluaciones estimadas por el modelo y menos comentarios. Úsalo solo como orientación y contrástalo con el análisis de Lichess.
-- Las evaluaciones del PGN original (`%eval`) **no se conservan** en el PGN enriquecido, porque el prompt solo permite `[%clk]` en los comentarios. Lichess Study puede recalcular su propio análisis si lo pides.
-- En la prueba que hicimos, el entorno del chat no tenía `python-chess`; la legalidad de jugadas, variaciones y FEN se comprobó con un comprobador propio y así se declara en el briefing. En otro entorno esto puede variar.
+**Versiones del prompt:** la vigente es la v4 (v0 es el original). El historial, con los motivos de cada cambio y la tabla de equivalencias de los nombres antiguos, está en `prompts/CHANGELOG.md`.
 
 ---
 
-## 7. Versiones del prompt
-
-El fichero vigente es `prompt_analisis_partidas_v3.txt`. El historial completo de cambios está en `CHANGELOG_prompt.md`. En resumen:
-
-- **v1:** el prompt original.
-- **v2:** siete correcciones surgidas de probarlo con tres partidas (paréntesis, cabeceras, tiempo usado, variaciones, plan B de python-chess, plantilla de FEN y origen de datos).
-- **v3:** añade una línea de indicadores por partida en el debriefing y sube el límite del debriefing a 450 palabras. Aún no se ha probado con una ejecución real.
-
-**Pendiente, opcional:** sacar los "Patrones recurrentes recientes" del prompt y apoyarse en el perfil, y reescribir el apartado del veredicto honesto sin signos de interrogación. Ambos están anotados en el changelog.
-
----
-
-## 8. Rutina semanal (5-8 horas)
+## 6. Rutina semanal (5-8 horas)
 
 | Bloque | Horas | Qué hacer |
 |---|---|---|
-| Jugar 15+10 | 2-3 | Unas 4 partidas con las reglas del perfil. Máximo 3 o 4 por sesión y parar tras 2 derrotas seguidas. |
-| Revisar | 1,5-2 | Pedir análisis, repasar primero las derrotas cortas con "Aprende de tus errores". |
-| Táctica | 1,5-2 | Pocos problemas, con calma. Temas: pieza colgada, horquilla, clavada, mate en 2 y 3. |
+| Jugar 15+10 | 2-3 | Unas 4 partidas con las reglas del perfil. Máximo 3 o 4 por sesión; parar tras 2 derrotas seguidas. |
+| Revisar | 1,5-2 | Repasar primero las derrotas cortas con "Aprende de tus errores". |
+| Táctica | 1,5-2 | Pocos problemas, con calma: pieza colgada, horquilla, clavada, mate en 2 y 3. |
 | Aperturas y finales | 0,5-1 | Explorador de aperturas y práctica de finales. |
 
-### Cada 20-30 partidas
-
-1. Exporta y guarda los PGN nuevos.
-2. Ejecuta el script con `--base-hasta` fijo (la fecha de tu línea base).
-3. Pega la fila nueva en la sección 8 del perfil.
-4. Pide a Claude un informe de progreso con este mensaje, adjuntando el perfil y la tabla:
+**Cada 20-30 partidas:** guarda los PGN nuevos, ejecuta el script con el mismo `--base-hasta`, pega la fila nueva en el registro del perfil y pide a Claude un informe con este mensaje (adjuntando perfil y tabla):
 
 > Te paso mi perfil y la tabla del script. Compara cada periodo con la BASE y el OBJETIVO, dime qué áreas (A1-A7) mejoran y cuáles no, y propón 2 prioridades para las próximas semanas. No uses cifras que no estén en la tabla.
 
-5. Si cambian tus áreas de mejora, actualiza el perfil y anota la versión en su historial.
-
 ---
 
-## 9. Problemas frecuentes
+## 7. Problemas frecuentes
 
 | Síntoma | Causa probable y solución |
 |---|---|
-| "No se ha encontrado ninguna partida" | La ruta es incorrecta o la carpeta no tiene ficheros `.pgn`. |
-| "Ninguna partida cumple los filtros" | El nombre de usuario no coincide o el `--ritmo` no existe. Comprueba el campo `TimeControl` del PGN (15+10 es `900+10`). |
-| Columnas de errores con `-` | Esas partidas no traen análisis. Pídelo en Lichess y vuelve a exportar. |
-| `python` no se reconoce | En Windows usa `py`. En Mac o Linux prueba `python3`. |
-| El CSV se ve en una sola columna | Importa con separador `;` o ábrelo con Excel en español. |
-| Claude dice "evaluaciones estimadas" | El PGN no llevaba `%eval`. Pide análisis y exporta de nuevo. |
-| El PGN enriquecido no se importa bien en el Estudio | Revisa que no hayas copiado texto extra fuera del bloque y que el comentario inicial vaya pegado a la primera jugada. |
+| "No se ha encontrado ninguna partida" | Ruta incorrecta o carpeta sin ficheros `.pgn`. |
+| "Ninguna partida cumple los filtros" | El usuario no coincide o el `--ritmo` no existe. Mira `TimeControl` en el PGN (15+10 es `900+10`). |
+| Columnas de errores con `-` | Esas partidas no traen análisis. Pídelo en Lichess o analiza en local y vuelve a medir. |
+| `python` no se reconoce | En Windows usa `py`; en Mac o Linux, `python3`. |
+| El CSV se ve en una sola columna | Importa con separador `;`. |
+| Claude dice "evaluaciones estimadas" | El PGN no llevaba `%eval`. |
+| `verificar_pgn.py` dice FALTAN JUGADAS | La salida se recortó. Descártala y genera de nuevo esa partida. |
+| El PGN no se importa bien en el Estudio | Revisa que no haya texto extra fuera del PGN y que el comentario inicial esté pegado a la primera jugada. |
 
 ---
 
-## 10. Limitaciones que conviene recordar
+## 8. Limitaciones
 
-- **Muestras pequeñas.** Con decenas de partidas, una semana mala no demuestra nada. Mira tendencias de varias semanas.
-- **El rating de una cuenta nueva es provisional** y se mueve mucho al principio. No lo uses como medida de nivel durante las primeras partidas.
+- **Muestras pequeñas:** con decenas de partidas, una semana mala no demuestra nada.
+- **El rating de una cuenta nueva es provisional** y se mueve mucho al principio.
 - **Las partidas analizadas pueden estar sesgadas** si solo analizas las que te interesan. Analiza todas las de 15+10.
-- **El modelo puede equivocarse** en explicaciones tácticas, sobre todo sin evaluaciones. Contrasta lo importante con Stockfish en Lichess.
-- **Los objetivos son propuestas.** Ajústalos según veas.
+- **El modelo puede equivocarse** en explicaciones tácticas, sobre todo sin evaluaciones. Contrasta lo importante en Lichess.
+- **Los objetivos son propuestas**, no referencias externas.

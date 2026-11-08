@@ -20,7 +20,9 @@ con analisis del ordenador. Pide el analisis en Lichess antes de exportar.
 
 DEFINICIONES
   tiempo por jugada = reloj propio anterior - reloj propio actual + incremento (la 1.a jugada se excluye)
-  % reloj usado     = suma del tiempo por jugada / tiempo base de la partida
+  % tiempo disponible usado = suma del tiempo por jugada / (tiempo base + incremento por cada jugada
+                      propia salvo la primera). Usa el tiempo disponible y no solo el base para que sea
+                      comparable entre partidas largas y cortas con incremento
   jugadas rapidas   = jugadas posteriores a la 10 con tiempo por jugada de 3 s o menos
   fases             = apertura hasta la jugada 10, medio juego de la 11 a la 25, final desde la 26
   derrota corta     = derrota en menos de 25 jugadas
@@ -39,7 +41,7 @@ from collections import Counter
 # Objetivos de partida (propuestas ajustables, no referencias externas)
 OBJETIVOS = {
     "mediana_s": ("≥", 8.0),
-    "uso_reloj_pct": ("≥", 40.0),
+    "uso_disponible_pct": ("≥", 40.0),
     "blunders_partida": ("≤", 1.2),
     "errores_partida": ("≤", 0.8),
     "derrotas_cortas_pct": ("≤", 15.0),
@@ -153,8 +155,8 @@ def procesar(gid, cab, mv, usuario):
         "analizada": int(analizada),
         "mediana_s": round(st.median(tv), 1) if tv else None,
         "media_s": round(st.mean(tv), 1) if tv else None,
-        "uso_reloj_pct": round(100 * sum(tv) / base, 1) if tv and base else None,
-        "uso_reloj_rival_pct": round(100 * sum(thinks_op) / base, 1) if thinks_op and base else None,
+        "uso_disponible_pct": round(100 * sum(tv) / (base + inc * len(tv)), 1) if tv and base else None,
+        "uso_disponible_rival_pct": round(100 * sum(thinks_op) / (base + inc * len(thinks_op)), 1) if thinks_op and base else None,
         "rapidas_pct": round(100 * sum(1 for t in despues10 if t <= 3) / len(despues10), 1) if despues10 else None,
         "imprecisiones": imp if analizada else None,
         "errores": err if analizada else None,
@@ -198,7 +200,7 @@ def resumen(partidas, base_hasta):
         clave = "BASE" if base_hasta and p["fecha"] <= base_hasta else semana(p["fecha"])
         grupos.setdefault(clave, []).append(p)
     orden = sorted(grupos, key=lambda k: ("" if k == "BASE" else k))
-    cab = ["Periodo", "Partidas", "Puntos %", "Mediana s/jugada", "% reloj usado",
+    cab = ["Periodo", "Partidas", "Puntos %", "Mediana s/jugada", "% tiempo disponible usado",
            "Blunders/partida", "Errores/partida", "Analizadas", "Derrotas cortas",
            "Ventajas tiradas", "Racha derrotas", "Máx. partidas/día"]
     filas = []
@@ -213,7 +215,7 @@ def resumen(partidas, base_hasta):
         filas.append([
             k, str(n), f(pts, 0, " %"),
             f(st.median(todos)) if todos else "-",
-            f(media(p["uso_reloj_pct"] for p in ps), 0, " %"),
+            f(media(p["uso_disponible_pct"] for p in ps), 0, " %"),
             f(media(p["blunders"] for p in an), 2), f(media(p["errores"] for p in an), 2),
             str(len(an)), f"{cortas} ({100 * cortas / n:.0f} %)",
             f"{vt} de {len(an)}", str(racha_max(sorted(ps, key=lambda p: (p["fecha"], p["hora"])))),
@@ -221,7 +223,7 @@ def resumen(partidas, base_hasta):
         ])
     o = OBJETIVOS
     filas.append(["OBJETIVO", "", "", f"{o['mediana_s'][0]} {f(o['mediana_s'][1])}",
-                  f"{o['uso_reloj_pct'][0]} {f(o['uso_reloj_pct'][1], 0)} %",
+                  f"{o['uso_disponible_pct'][0]} {f(o['uso_disponible_pct'][1], 0)} %",
                   f"{o['blunders_partida'][0]} {f(o['blunders_partida'][1], 1)}",
                   f"{o['errores_partida'][0]} {f(o['errores_partida'][1], 1)}", "",
                   f"{o['derrotas_cortas_pct'][0]} {f(o['derrotas_cortas_pct'][1], 0)} %",

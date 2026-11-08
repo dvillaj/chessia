@@ -2,7 +2,7 @@
 
 **Objetivo:** pasar de ~1570 a 1850 en partidas rápidas 15+10 (cuenta peondeloto).
 **Dedicación:** 5-8 h semanales, solo herramientas de Lichess.
-**Versión del perfil:** 1 (5 nov 2026). Actualizar cada 20-30 partidas nuevas.
+**Versión del perfil:** 2 (7 nov 2026). Actualizar cada 20-30 partidas nuevas.
 
 > **Cómo usar este documento:** adjúntalo junto al PGN de las partidas nuevas. Las áreas de mejora tienen un código fijo (A1, A2...) para que la comparativa "SE REPITE, MEJORA o ES NUEVO" sea siempre sobre lo mismo. Los números de verdad los calcula `metricas_pgn.py`, no el modelo.
 
@@ -28,7 +28,7 @@
 | Código | Área | Evidencia | Métrica del script |
 |---|---|---|---|
 | A1 | **Partidas perdidas antes de la jugada 25** | peondeloto: 10 de 21 partidas (48 %); solo 1 victoria en las 11 que acabaron antes de la jugada 25. dvillaj: 22 % de las partidas | `derrotas_cortas` |
-| A2 | **Ritmo: usas muy poco reloj y el tiempo no se usa en revisar amenazas** | peondeloto: mediana de 3 s por jugada, 19 % del tiempo base usado frente a 69 % del rival, 60 % de las jugadas en menos de 5 s. dvillaj: mediana de 2 s, 19 % frente a 37 %. Matiz: también cometes errores cuando piensas 7 s o más, así que hace falta un chequeo, no solo ir más lento | `mediana_s`, `uso_reloj_pct`, `rapidas_pct` |
+| A2 | **Ritmo: usas muy poco reloj y el tiempo no se usa en revisar amenazas** | peondeloto: mediana de 3 s por jugada, 14 % del tiempo disponible usado frente a 51 % del rival, 60 % de las jugadas en menos de 5 s. dvillaj: mediana de 2 s, 19 % frente a 37 %. Matiz: también cometes errores cuando piensas 7 s o más, así que hace falta un chequeo, no solo ir más lento | `mediana_s`, `uso_disponible_pct`, `rapidas_pct` |
 | A3 | **Blunders, sobre todo en el medio juego** | peondeloto: 2,5 por partida (8 % de tus jugadas). dvillaj: 2,36 por partida; 36 en apertura, 101 en medio juego y 52 en final (ahí se concentra la mitad). Tienes casi los mismos blunders en las partidas ganadas que en las perdidas | `blunders`, `blunders_medio` |
 | A4 | **Convertir ventajas** | dvillaj: en 56 de 80 partidas analizadas llegaste a +3,0 o más y no ganaste 23 de ellas. peondeloto: +7,1 en la jugada 26 (26.Rdd6??) y perdiste por mate | `ventaja_tirada` |
 | A5 | **Seguridad del rey, ataques prematuros y capturas de peón con la dama** | Hipótesis por lectura sin motor, a contrastar: h4 y h5 tempranos con sacrificio Rxh5 en la Londres, rey en el centro y dama lejos en derrotas de 14 a 20 jugadas. Con blancas: 3 victorias y 7 derrotas en 10 partidas | Cualitativa (comparativa del prompt) |
@@ -42,7 +42,7 @@
 | Puntos | 31 % | 50 % | sin objetivo fijo |
 | Mediana de segundos por jugada | 3,0 | 2,0 | 8 o más |
 | Media de segundos por jugada | 6,0 | 3,6 | |
-| % del tiempo base usado | 19 % (rival 69 %) | 19 % (rival 37 %) | 40 % o más |
+| % del tiempo disponible usado | 14 % (rival 51 %) | 19 % (rival 37 %) | 40 % o más |
 | % de jugadas rápidas (10 o más, 3 s o menos) | 41 % | 59 % | |
 | Blunders por partida | 2,50 (10 analizadas) | 2,36 (80 analizadas) | 1,2 o menos |
 | Errores (mistakes) por partida | 1,50 | 1,12 | 0,8 o menos |
@@ -53,7 +53,7 @@
 | Racha de derrotas más larga | 6 | 9 | 3 o menos |
 | Máx. partidas en un día | 14 | 47 | 5 o menos |
 
-**Nota:** los objetivos son propuestas de partida y se pueden ajustar en el script (`OBJETIVOS`); no son referencias externas de lo que hace un jugador de 1850. Las definiciones exactas están al principio del script. Excluye la primera jugada de cada bando, por eso algunas cifras difieren ligeramente de otros cálculos.
+**Nota:** los objetivos son propuestas de partida y se pueden ajustar en el script (`OBJETIVOS`); no son referencias externas de lo que hace un jugador de 1850. Las definiciones exactas están al principio del script. El tiempo disponible es el tiempo base más el incremento de cada jugada propia salvo la primera, y sustituye al tiempo base que usaba la versión 1 de este perfil (19 % en peondeloto), porque con incremento el porcentaje sobre el tiempo base engañaba en partidas largas. Excluye la primera jugada de cada bando, por eso algunas cifras difieren ligeramente de otros cálculos.
 
 ## 5. Reglas de trabajo
 
@@ -78,6 +78,8 @@
 ajedrez/
   perfil_peondeloto.md        este documento
   metricas_pgn.py             el script
+  prompts/                    versiones del prompt y su changelog
+  CONTEXTO_IA.md              contexto del proyecto para un modelo de IA
   partidas/                   exportaciones de Lichess con análisis y relojes (.pgn)
   analisis/                   los PGN enriquecidos que devuelve el prompt
   progreso_peondeloto.csv     lo genera el script
@@ -91,10 +93,11 @@ python metricas_pgn.py partidas --usuario peondeloto --ritmo 900+10 --base-hasta
 
 ## 8. Registro de progreso (pega aquí la tabla del script cada 20-30 partidas)
 
-| Fecha de corte | Partidas | Mediana s | % reloj | Blunders por partida | Derrotas cortas | Ventajas tiradas | Notas |
+| Fecha de corte | Partidas | Mediana s | % tiempo disponible | Blunders por partida | Derrotas cortas | Ventajas tiradas | Notas |
 |---|---|---|---|---|---|---|---|
-| 2026-11-03 (BASE) | 21 | 3,0 | 19 % | 2,50 | 48 % | 1 de 10 | Línea base |
+| 2026-11-03 (BASE) | 21 | 3,0 | 14 % | 2,50 | 48 % | 1 de 10 | Línea base |
 
 ## 9. Historial de versiones
 
 - **v1 (5 nov 2026):** primer diagnóstico con 805 partidas de dvillaj131313 y 21 de peondeloto.
+- **v2 (7 nov 2026):** el porcentaje de reloj pasa a medirse sobre el tiempo disponible (base más incrementos). Línea base de peondeloto: 14 % frente a 51 % del rival. En dvillaj no cambia, porque 10+0 no tiene incremento.

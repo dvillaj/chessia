@@ -1,0 +1,2 @@
+# Dependencia unica del entorno local de analisis (el paquete se importa como "chess")
+chess>=1.10
