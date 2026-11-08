@@ -6,7 +6,8 @@ analizar_local.py - Analiza tus partidas con Stockfish en local y las escribe en
 Lee PGN exportados de Lichess (con relojes), evalua cada posicion con Stockfish y escribe un PGN con
   - [%eval ...] y [%clk ...] en cada jugada,
   - comentarios Inaccuracy, Mistake y Blunder con los mismos umbrales que Lichess,
-  - la mejor alternativa como variacion.
+  - la mejor alternativa como variacion,
+  - las cabeceras ECO y Opening, si la partida no las trae (base de aperturas de Lichess, ver aperturas.py).
 El resultado se puede usar tal cual con metricas_pgn.py, verificar_pgn.py y el prompt.
 
 REQUISITOS  python-chess (pipenv install desde la raíz) y un ejecutable de Stockfish.
@@ -16,6 +17,7 @@ USO
   pipenv run python analisis_local/analizar_local.py partidas/peondeloto --profundidad 22 --salida partidas_analizadas
   pipenv run python analisis_local/analizar_local.py partidas/peondeloto --tiempo 2 --hilos 4
   pipenv run python analisis_local/analizar_local.py partidas/peondeloto --nodos 2000000
+  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --procesos 6
   pipenv run python analisis_local/analizar_local.py --autotest --motor /ruta/a/stockfish
 
 LIMITE DE ANALISIS (por posicion). Si se dan varios, manda este orden: --nodos, --tiempo, --profundidad.
@@ -24,15 +26,22 @@ largo, lo que provoca diferencias con el analisis de Lichess.
 
 El motor se busca, por este orden, en --motor, en la variable de entorno STOCKFISH_PATH, en el PATH y en
 las rutas habituales. Las partidas que ya traen evaluaciones se copian sin cambios, salvo con --reanalizar.
-Se escribe un fichero <nombre>_analizado.pgn por cada PGN de entrada.
+Se escribe un fichero <nombre>_analizado.pgn por cada PGN de entrada, partida a partida y en el orden original:
+si se interrumpe, queda guardado todo lo hecho hasta ese momento.
+
+--procesos N analiza N partidas a la vez, cada una con su propio Stockfish (--hilos, por defecto 1, y --hash MB
+por proceso, asi que la memoria es N veces la de un proceso). El resultado de cada partida no depende de N.
 """
 import argparse
 import glob
+import multiprocessing.util
 import os
 import shutil
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor
 
+import aperturas
 import nucleo as n
 
 RUTAS_HABITUALES = [
@@ -132,15 +141,17 @@ def buscar_motor(explicito):
              "Consulta la sección 4 de README.md para instalarlo.")
 
 
+def texto_limite(args):
+    if args.nodos:
+        return f"{args.nodos} nodos"
+    if args.tiempo:
+        return f"{args.tiempo:g} s por posicion"
+    return f"profundidad {args.profundidad}"
+
+
 def crear_motor(args, chess):
     ruta = buscar_motor(args.motor)
-    if args.nodos:
-        limite_txt = f"{args.nodos} nodos"
-    elif args.tiempo:
-        limite_txt = f"{args.tiempo:g} s por posicion"
-    else:
-        limite_txt = f"profundidad {args.profundidad}"
-    return MotorUCI(chess, ruta, limite_txt, depth=args.profundidad, nodes=args.nodos, tiempo=args.tiempo,
+    return MotorUCI(chess, ruta, texto_limite(args), depth=args.profundidad, nodes=args.nodos, tiempo=args.tiempo,
                     hilos=args.hilos, hash_mb=args.hash_mb)
 
 
@@ -162,64 +173,123 @@ def resumen_juicios(jugadas):
     return f"blancas {f(c['W'])}; negras {f(c['B'])}"
 
 
-def analizar_texto_partida(p, ajedrez, motor):
+def analizar_texto_partida(p, ajedrez, motor, libro=None):
     jugadas = n.leer_jugadas(p["movimientos"])
     motor.nueva_partida()
     n.analizar_partida(jugadas, ajedrez, motor)
-    cab = [(k, v) for k, v in p["cabeceras"] if k != "Annotator"] + [("Annotator", f"analizar_local.py con {motor.descripcion}")]
+    cab = [(k, v) for k, v in p["cabeceras"] if k != "Annotator"]
+    if libro:
+        cab = libro.con_apertura(cab, [j["san"] for j in jugadas])
+    cab.append(("Annotator", f"analizar_local.py con {motor.descripcion}"))
     return n.escribir_partida(cab, jugadas, p["resultado"]), jugadas
 
 
-def procesar(args, chess):
-    ajedrez = AjedrezChess(chess)
+def base_aperturas_disponible():
+    return all(os.path.isfile(os.path.join(aperturas.DIRECTORIO, f"{letra}.tsv")) for letra in "abcde")
+
+
+_motor = None
+_ajedrez = None
+_libro = None
+
+
+def _iniciar_proceso(args):
+    global _motor, _ajedrez, _libro
+    chess = importar_chess()
+    _ajedrez = AjedrezChess(chess)
+    _libro = aperturas.LibroAperturas(chess) if base_aperturas_disponible() else None
+    _motor = crear_motor(args, chess)
+    multiprocessing.util.Finalize(None, _motor.cerrar, exitpriority=10)
+
+
+def _analizar_en_proceso(p):
+    """Analiza una partida en este proceso. Devuelve (texto, semijugadas, resumen, error, segundos)."""
+    t0 = time.time()
+    try:
+        texto, js = analizar_texto_partida(p, _ajedrez, _motor, _libro)
+    except ValueError as e:
+        return None, 0, None, str(e), time.time() - t0
+    return texto, len(js), resumen_juicios(js), None, time.time() - t0
+
+
+def planificar(ficheros, args):
+    """Devuelve (plan, a_analizar): por fichero, su destino y sus (partida, accion); y las partidas a analizar, en orden."""
+    plan, a_analizar = [], []
+    for f in ficheros:
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            partidas = n.separar_partidas(fh.read())
+        destino = os.path.join(args.salida, os.path.splitext(os.path.basename(f))[0] + "_analizado.pgn")
+        items = []
+        for p in partidas:
+            if dict(p["cabeceras"]).get("Variant", "Standard") != "Standard":
+                accion = "variante"
+            elif "%eval" in p["movimientos"] and not args.reanalizar:
+                accion = "ya_analizada"
+            elif args.maximo and len(a_analizar) >= args.maximo:
+                accion = "copiar"
+            else:
+                accion = "analizar"
+                a_analizar.append(p)
+            items.append((p, accion))
+        plan.append((destino, items))
+    return plan, a_analizar
+
+
+def escribir_partida(out, texto):
+    out.write(texto if texto.endswith("\n\n") else texto.rstrip("\n") + "\n\n")
+    out.flush()
+
+
+def procesar(args):
     ficheros = ficheros_de(args.entradas, args.salida)
     if not ficheros:
         sys.exit("No se ha encontrado ningun PGN en las rutas indicadas.")
+    ruta_motor = buscar_motor(args.motor)
     os.makedirs(args.salida, exist_ok=True)
-    motor = crear_motor(args, chess)
-    print(f"Motor: {motor.descripcion}")
+    if not base_aperturas_disponible():
+        print("Aviso: no se encuentra la base de aperturas (analisis_local/base_aperturas); no se anadiran ECO ni Opening")
+    plan, a_analizar = planificar(ficheros, args)
+    procesos = max(1, min(args.procesos, len(a_analizar)))
+    print(f"Motor: {ruta_motor} | limite: {texto_limite(args)} | {len(a_analizar)} partidas a analizar con {procesos} proceso(s)")
+    ex = None
+    resultados = iter(())
+    if a_analizar:
+        ex = ProcessPoolExecutor(max_workers=procesos, initializer=_iniciar_proceso, initargs=(args,))
+        resultados = ex.map(_analizar_en_proceso, a_analizar)
     total = analizadas = 0
+    interrumpido = False
     t_ini = time.time()
     try:
-        for f in ficheros:
-            with open(f, encoding="utf-8", errors="replace") as fh:
-                partidas = n.separar_partidas(fh.read())
-            destino = os.path.join(args.salida, os.path.splitext(os.path.basename(f))[0] + "_analizado.pgn")
-            salida = []
-            try:
-                for p in partidas:
+        for destino, items in plan:
+            with open(destino, "w", encoding="utf-8") as out:
+                for p, accion in items:
                     cab = dict(p["cabeceras"])
                     gid = cab.get("GameId", "?")
                     total += 1
-                    if cab.get("Variant", "Standard") != "Standard":
+                    if accion == "variante":
                         print(f"-  {gid}: variante {cab['Variant']}, se copia sin analizar")
-                        salida.append(p["texto"])
-                        continue
-                    if "%eval" in p["movimientos"] and not args.reanalizar:
+                        escribir_partida(out, p["texto"])
+                    elif accion == "ya_analizada":
                         print(f"=  {gid}: ya trae analisis, se copia sin cambios (usa --reanalizar para rehacerlo)")
-                        salida.append(p["texto"])
-                        continue
-                    if args.maximo and analizadas >= args.maximo:
-                        salida.append(p["texto"])
-                        continue
-                    t0 = time.time()
-                    try:
-                        texto, js = analizar_texto_partida(p, ajedrez, motor)
-                    except ValueError as e:
-                        print(f"X  {gid}: {e}; se copia sin analizar")
-                        salida.append(p["texto"])
-                        continue
-                    analizadas += 1
-                    salida.append(texto)
-                    print(f"OK {gid}: {len(js)} semijugadas en {time.time() - t0:.0f} s | {resumen_juicios(js)}")
-            finally:
-                with open(destino, "w", encoding="utf-8") as out:
-                    out.write("".join(s if s.endswith("\n\n") else s.rstrip("\n") + "\n\n" for s in salida))
-                print(f"-> {destino}")
+                        escribir_partida(out, p["texto"])
+                    elif accion == "copiar":
+                        escribir_partida(out, p["texto"])
+                    else:
+                        texto, semijugadas, resumen, error, segundos = next(resultados)
+                        if error:
+                            print(f"X  {gid}: {error}; se copia sin analizar")
+                            escribir_partida(out, p["texto"])
+                            continue
+                        analizadas += 1
+                        escribir_partida(out, texto)
+                        print(f"OK {gid}: {semijugadas} semijugadas en {segundos:.0f} s | {resumen}", flush=True)
+            print(f"-> {destino}")
     except KeyboardInterrupt:
+        interrumpido = True
         print("\nInterrumpido. Lo analizado hasta ahora se ha guardado.")
     finally:
-        motor.cerrar()
+        if ex:
+            ex.shutdown(wait=not interrumpido, cancel_futures=True)
     print(f"\n{analizadas} partidas analizadas de {total} en {time.time() - t_ini:.0f} s")
 
 
@@ -268,8 +338,9 @@ def main():
                     help=f"profundidad de analisis (por defecto {PROFUNDIDAD_POR_DEFECTO})")
     ap.add_argument("--nodos", type=int, help="limite de nodos por posicion; sustituye a la profundidad y al tiempo")
     ap.add_argument("--tiempo", type=float, help="segundos por posicion; sustituye a la profundidad")
-    ap.add_argument("--hilos", type=int, default=0, help="hilos del motor (0 = valor por defecto del motor)")
-    ap.add_argument("--hash", type=int, default=256, dest="hash_mb", help="memoria hash en MB (por defecto 256)")
+    ap.add_argument("--hilos", type=int, default=0, help="hilos de cada motor (0 = valor por defecto del motor, 1)")
+    ap.add_argument("--hash", type=int, default=256, dest="hash_mb", help="memoria hash en MB por proceso (por defecto 256)")
+    ap.add_argument("--procesos", type=int, default=1, help="partidas analizadas a la vez (por defecto 1)")
     ap.add_argument("--reanalizar", action="store_true", help="rehace tambien las partidas que ya traen evaluaciones")
     ap.add_argument("--maximo", type=int, default=0, help="analiza como maximo N partidas (util para probar)")
     ap.add_argument("--autotest", action="store_true", help="comprueba la instalacion con una partida corta")
@@ -280,7 +351,7 @@ def main():
     if args.autotest:
         autotest(args, chess)
     elif args.entradas:
-        procesar(args, chess)
+        procesar(args)
     else:
         ap.error("indica ficheros o carpetas de PGN, o usa --autotest")
 

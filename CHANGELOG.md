@@ -3,6 +3,32 @@
 Historial de cambios del software. El historial de versiones del prompt de análisis
 se mantiene por separado en [`prompts/CHANGELOG.md`](prompts/CHANGELOG.md).
 
+## [Sin publicar]
+
+### Añadido
+
+- `analizar_local.py` añade las cabeceras `ECO` y `Opening` a las partidas que no las traen, con la base
+  de aperturas de Lichess (`analisis_local/base_aperturas/`, copia de `lichess-org/chess-openings`, CC0).
+  Nuevo módulo `analisis_local/aperturas.py`: búsqueda por posición, hasta 40 semijugadas, como scalachess.
+- `analizar_local.py` acepta `--procesos N` para analizar N partidas a la vez, cada una con su propio Stockfish.
+  La salida no depende de N. El fichero de salida se escribe partida a partida, así que una interrupción
+  no pierde lo ya analizado.
+- `calibrar_con_lichess.py` acepta `--procesos N` para comparar N partidas a la vez, cada una con su propio
+  Stockfish, y `--tiempo`.
+- Pruebas en `tests/test_aperturas.py`.
+- Pruebas en `tests/test_umbrales_lichess.py`: la regla de etiquetas debe coincidir con las de Lichess
+  (al menos 99,5 % en jugadas normales y 95 % con mate); se saltan si faltan partidas en `partidas/`.
+
+### Corregido
+
+- `calibrar_con_lichess.py` fallaba con `AttributeError` desde la 1.1.0 por no definir `--tiempo`. Ahora usa
+  la profundidad por defecto de `analizar_local.py` (20) y envía `ucinewgame` antes de cada partida.
+
+### Cambiado
+
+- `validar_umbrales_offline.py` expone `comparar` y `acuerdo` para reutilizarlos desde las pruebas; su salida
+  no cambia. `pytest` añade `analisis_local` al `pythonpath`.
+
 ## [1.1.0] - 2026-11-08
 
 ### Añadido

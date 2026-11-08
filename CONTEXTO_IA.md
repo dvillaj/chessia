@@ -38,6 +38,8 @@ chessia/
 │   ├── analizar_local.py      analiza PGN con Stockfish (--profundidad 20 por defecto, --tiempo, --nodos) y escribe el resultado en formato Lichess
 │   ├── calibrar_con_lichess.py   compara el análisis local con el de Lichess
 │   ├── nucleo.py              lógica pura: evaluaciones, clasificación, lectura y escritura de PGN
+│   ├── aperturas.py           busca ECO y Opening por posición como Lichess (necesita python-chess)
+│   ├── base_aperturas/        a.tsv a e.tsv de lichess-org/chess-openings (CC0); origen en su LEEME.md
 │   ├── validar_umbrales_offline.py   validación que no necesita motor; solo usa partidas con Annotator "lichess.org"
 ├── prompts/
 │   ├── CHANGELOG.md           historial de versiones del prompt

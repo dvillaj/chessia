@@ -132,7 +132,7 @@ Debe terminar con `AUTOTEST OK`. Las pruebas unitarias del núcleo que no necesi
 pipenv run pytest
 ```
 
-No requieren Stockfish.
+No requieren Stockfish. Incluyen una comprobación de la regla de etiquetas contra las de Lichess que usa los PGN de `partidas/` y se salta si hay menos de 30 partidas analizadas por Lichess.
 
 ### Analizar partidas
 
@@ -142,16 +142,19 @@ pipenv run python analisis_local/analizar_local.py partidas/peondeloto --salida 
 
 Escribe un `<nombre>_analizado.pgn` por cada PGN de entrada. Las partidas que ya traen evaluaciones se copian sin cambios, salvo que se indique `--reanalizar`. Si se indican varios límites, manda este orden: `--nodos`, `--tiempo`, `--profundidad`. El motor recibe `ucinewgame` al empezar cada partida, así que no arrastra la tabla hash de la anterior.
 
+Si la partida no trae las cabeceras `ECO` y `Opening`, el analizador las añade como hace Lichess, con su base pública de aperturas (`chess-openings`, CC0, guardada en `analisis_local/base_aperturas/`; origen y forma de actualizarla en su `LEEME.md`). La búsqueda es por posición, así que las transposiciones dan el mismo resultado. Las partidas exportadas de Lichess ya las traen y no se tocan. Sobre 865 partidas de Lichess, el resultado coincidió con su etiqueta en el 97,5 %; las diferencias vienen de que la base del repositorio es más reciente que la que usa Lichess (nombres renombrados o líneas más profundas añadidas).
+
 | Opción | Para qué sirve |
 |---|---|
 | `--profundidad N` | Profundidad por posición (por defecto 20). Más profundidad es más lento y más fiable; con 16 las evaluaciones son más ruidosas y a veces no se ve un mate largo. |
 | `--tiempo S` | Segundos por posición; sustituye a la profundidad. |
 | `--nodos N` | Límite de nodos por posición; sustituye a la profundidad y al tiempo. |
-| `--hilos N` y `--hash MB` | Recursos del motor. Con 0 hilos se usa el valor por defecto del motor. |
+| `--procesos N` | Analiza N partidas a la vez, cada una con su propio Stockfish de 1 hilo. El resultado de cada partida no depende de N. Es la forma recomendada de acelerar el análisis. |
+| `--hilos N` y `--hash MB` | Recursos de cada motor. Con 0 hilos se usa el valor por defecto del motor (1). `--hash` es por proceso, así que la memoria es N veces la de uno. Subir `--hilos` no es reproducible y en las pruebas fue más lento. |
 | `--reanalizar` | Rehace también las partidas que ya traen evaluaciones. |
 | `--maximo N` | Analiza como mucho N partidas; útil para medir el tiempo antes de procesar todas. |
 
-Puedes interrumpir con Ctrl+C: lo analizado hasta ese momento se guarda. Conviene empezar con `--maximo 1` para medir cuánto tarda en tu equipo.
+El fichero de salida se escribe partida a partida y en el orden original, así que puedes interrumpir con Ctrl+C: lo analizado hasta ese momento queda guardado. Conviene empezar con `--maximo 1` para medir cuánto tarda en tu equipo.
 
 Los PGN originales de Lichess se quedan en `partidas/`; los analizados localmente van a `partidas_analizadas/`. Mide el progreso **solo sobre una de esas carpetas**, nunca mezcles originales y analizados: si hay dos versiones de la misma partida, el script puede quedarse con la que no tiene evaluaciones.
 
@@ -184,6 +187,8 @@ Solo se usan partidas con `[Annotator "lichess.org"]`. Los PGN analizados en loc
 ```
 pipenv run python analisis_local/calibrar_con_lichess.py partidas --maximo 10
 ```
+
+También acepta `--procesos N`, igual que el analizador (misma salida con cualquier N).
 
 Muestra la diferencia de evaluación, el acuerdo de etiquetas y los blunders por partida. Si el acuerdo es bajo, prueba con más profundidad, con `--tiempo` o con `--nodos`. Una vez elegido el ajuste, úsalo siempre igual para las partidas que quieras comparar.
 
