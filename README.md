@@ -14,6 +14,16 @@ Objetivo: pasar de ~1570 a 1850 en partidas rápidas 15+10 con la cuenta **peond
 
 Si usas un modelo de IA para mantener el sistema, pásale también `CONTEXTO_IA.md`.
 
+### Preparar el entorno
+
+El entorno de Python se gestiona desde la raíz del proyecto con Pipenv. Necesitas Python 3.12 y Pipenv instalado. Desde la carpeta del proyecto, ejecuta:
+
+```
+pipenv install
+```
+
+Esto instala las dependencias definidas en `Pipfile` y `Pipfile.lock`. Ejecuta los scripts de Python desde la raíz con `pipenv run python`; no hace falta activar un entorno virtual manualmente. Stockfish se instala aparte y solo es necesario para el análisis local.
+
 ---
 
 ## 1. Resumen en 7 pasos
@@ -26,7 +36,7 @@ Si usas un modelo de IA para mantener el sistema, pásale también `CONTEXTO_IA.
 6. Guarda en `analisis/` los PGN enriquecidos y ejecuta `verificar_pgn.py`.
 7. Importa cada PGN verificado en un **Estudio de Lichess** y repásalo.
 
-**Requisitos:** Python 3.8 o superior (`python --version`; en Windows, `py`), cuenta de Lichess, acceso a Claude y un editor de texto. El análisis local necesita además python-chess y Stockfish (ver su guía).
+**Requisitos:** Python 3.12, Pipenv, cuenta de Lichess, acceso a Claude y un editor de texto. El análisis local necesita además Stockfish (ver su guía); python-chess se instala con Pipenv.
 
 ---
 
@@ -35,6 +45,7 @@ Si usas un modelo de IA para mantener el sistema, pásale también `CONTEXTO_IA.
 ```
 ajedrez/
 ├── README.md, CONTEXTO_IA.md, perfil_peondeloto.md
+├── Pipfile, Pipfile.lock          entorno Python compartido del proyecto
 ├── metricas_pgn.py              métricas de progreso
 ├── verificar_pgn.py             comprobación de los PGN enriquecidos
 ├── entorno/                     análisis local con Stockfish (opcional)
@@ -75,10 +86,10 @@ Los parámetros están documentados en `https://lichess.org/api`; compruébalos 
 
 ## 4. Medir tu progreso con `metricas_pgn.py`
 
-Desde la carpeta `ajedrez/`:
+Desde la raíz del proyecto:
 
 ```
-python metricas_pgn.py partidas/peondeloto --usuario peondeloto --ritmo 900+10 --base-hasta 2026-11-03 --csv progreso/progreso_peondeloto.csv
+pipenv run python metricas_pgn.py partidas/peondeloto --usuario peondeloto --ritmo 900+10 --base-hasta 2026-11-03 --csv progreso/progreso_peondeloto.csv
 ```
 
 `--base-hasta` marca la fecha hasta la que las partidas forman el grupo **BASE**; las posteriores se agrupan por semana. Sin `--usuario` usa el nombre que más aparece.
@@ -109,7 +120,7 @@ El CSV usa `;` y coma decimal para abrirse en Excel en español (en pandas: `sep
 4. Antes de importar, comprueba que están completos:
 
 ```
-python verificar_pgn.py --originales partidas/peondeloto --enriquecidos analisis
+pipenv run python verificar_pgn.py --originales partidas/peondeloto --enriquecidos analisis
 ```
 
 Imprime `OK` o `X` con los problemas: jugadas que faltan, cabeceras o relojes cambiados, caracteres prohibidos, límites de palabras. **No comprueba la legalidad** de las variaciones ni de las FEN. Si dice `FALTAN JUGADAS`, descarta ese PGN y pide generarlo de nuevo.
@@ -148,7 +159,8 @@ Cada chat nuevo parte de cero. Si no quieres repetir el paso 1, crea un **Proyec
 | "No se ha encontrado ninguna partida" | Ruta incorrecta o carpeta sin ficheros `.pgn`. |
 | "Ninguna partida cumple los filtros" | El usuario no coincide o el `--ritmo` no existe. Mira `TimeControl` en el PGN (15+10 es `900+10`). |
 | Columnas de errores con `-` | Esas partidas no traen análisis. Pídelo en Lichess o analiza en local y vuelve a medir. |
-| `python` no se reconoce | En Windows usa `py`; en Mac o Linux, `python3`. |
+| Pipenv no encuentra Python | Comprueba que Python 3.12 está instalado y disponible para Pipenv. |
+| `pipenv` no se reconoce | Instala Pipenv y vuelve a abrir la terminal para actualizar el PATH. |
 | El CSV se ve en una sola columna | Importa con separador `;`. |
 | Claude dice "evaluaciones estimadas" | El PGN no llevaba `%eval`. |
 | `verificar_pgn.py` dice FALTAN JUGADAS | La salida se recortó. Descártala y genera de nuevo esa partida. |
