@@ -9,11 +9,11 @@ Toma PGN que Lichess ya ha analizado, vuelve a analizar cada partida en local y 
   - blunders por partida segun cada analisis.
 
 Sirve para decidir con datos que profundidad usar y cuanto se parece tu analisis local al de Lichess.
-Requiere python-chess y Stockfish (ver README_ENTORNO.md).
+Requiere python-chess y Stockfish (ver README.md, sección 4).
 
 Uso:
-  python calibrar_con_lichess.py partidas/peondeloto --motor /ruta/a/stockfish --maximo 10
-  python calibrar_con_lichess.py partidas/peondeloto --profundidad 20 --maximo 10
+  pipenv run python entorno/calibrar_con_lichess.py partidas/peondeloto --motor /ruta/a/stockfish --maximo 10
+  pipenv run python entorno/calibrar_con_lichess.py partidas/peondeloto --profundidad 20 --maximo 10
 """
 import argparse
 import collections

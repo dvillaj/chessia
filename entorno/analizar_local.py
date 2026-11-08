@@ -9,12 +9,12 @@ Lee PGN exportados de Lichess (con relojes), evalua cada posicion con Stockfish 
   - la mejor alternativa como variacion.
 El resultado se puede usar tal cual con metricas_pgn.py, verificar_pgn.py y el prompt.
 
-REQUISITOS  python-chess (pip install -r requirements.txt) y un ejecutable de Stockfish.
+REQUISITOS  python-chess (pipenv install desde la raíz) y un ejecutable de Stockfish.
 
 USO
-  python analizar_local.py partidas/peondeloto --motor /ruta/a/stockfish
-  python analizar_local.py partidas/peondeloto --profundidad 18 --salida partidas_analizadas
-  python analizar_local.py --autotest --motor /ruta/a/stockfish
+  pipenv run python entorno/analizar_local.py partidas/peondeloto --motor /ruta/a/stockfish
+  pipenv run python entorno/analizar_local.py partidas/peondeloto --profundidad 18 --salida partidas_analizadas
+  pipenv run python entorno/analizar_local.py --autotest --motor /ruta/a/stockfish
 
 El motor se busca, por este orden, en --motor, en la variable de entorno STOCKFISH_PATH, en el PATH y en
 las rutas habituales. Las partidas que ya traen evaluaciones se copian sin cambios, salvo con --reanalizar.
@@ -101,7 +101,7 @@ def importar_chess():
         import chess.engine  # noqa: F401
         return chess
     except ImportError:
-        sys.exit("Falta python-chess. Instalalo con:  pip install -r requirements.txt  (dentro de tu entorno virtual)")
+        sys.exit("Falta python-chess. Instalalo con:  pipenv install  (desde la raíz del proyecto)")
 
 
 def buscar_motor(explicito):
@@ -110,7 +110,7 @@ def buscar_motor(explicito):
         if c and os.path.isfile(c):
             return c
     sys.exit("No encuentro Stockfish. Indica la ruta con --motor o con la variable STOCKFISH_PATH. "
-             "Consulta README_ENTORNO.md para instalarlo.")
+             "Consulta la sección 4 de README.md para instalarlo.")
 
 
 def crear_motor(args, chess):

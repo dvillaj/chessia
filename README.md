@@ -8,7 +8,7 @@ Objetivo: pasar de ~1570 a 1850 en partidas rápidas 15+10 con la cuenta **peond
 | El entrenador | `prompts/prompt_analisis_partidas_v4.txt` | Explica cada partida y devuelve un PGN enriquecido para Lichess Study. |
 | El medidor | `metricas_pgn.py` | Calcula las métricas de progreso. Los números los saca el script, no el modelo. |
 | El verificador | `verificar_pgn.py` | Comprueba que cada PGN enriquecido tiene todas las jugadas del original y cumple el formato. |
-| El analizador local | `entorno/` | Analiza tus partidas con Stockfish en tu ordenador (opcional). Ver `entorno/README_ENTORNO.md`. |
+| El analizador local | `entorno/` | Analiza tus partidas con Stockfish en tu ordenador (opcional; instrucciones en la sección 4). |
 
 > **Idea clave:** el prompt explica, el script mide. No le pidas a un modelo aritmética de relojes ni que recuerde tus cifras anteriores.
 
@@ -36,7 +36,7 @@ Esto instala las dependencias definidas en `Pipfile` y `Pipfile.lock`. Ejecuta l
 6. Guarda en `analisis/` los PGN enriquecidos y ejecuta `verificar_pgn.py`.
 7. Importa cada PGN verificado en un **Estudio de Lichess** y repásalo.
 
-**Requisitos:** Python 3.12, Pipenv, cuenta de Lichess, acceso a Claude y un editor de texto. El análisis local necesita además Stockfish (ver su guía); python-chess se instala con Pipenv.
+**Requisitos:** Python 3.12, Pipenv, cuenta de Lichess, acceso a Claude y un editor de texto. El análisis local necesita además Stockfish (sección 4); python-chess se instala con Pipenv.
 
 ---
 
@@ -45,7 +45,7 @@ Esto instala las dependencias definidas en `Pipfile` y `Pipfile.lock`. Ejecuta l
 ```
 ajedrez/
 ├── README.md, CONTEXTO_IA.md, perfil_peondeloto.md
-├── Pipfile, Pipfile.lock          entorno Python compartido del proyecto
+├── Pipfile, Pipfile.lock        entorno Python compartido del proyecto
 ├── metricas_pgn.py              métricas de progreso
 ├── verificar_pgn.py             comprobación de los PGN enriquecidos
 ├── entorno/                     análisis local con Stockfish (opcional)
@@ -78,13 +78,115 @@ curl -H "Accept: application/x-chess-pgn" \
 
 Los parámetros están documentados en `https://lichess.org/api`; compruébalos allí. `perfType=rapid` incluye 10+0 y 15+10; el filtro exacto se hace luego con `--ritmo 900+10`.
 
-**Opción B: análisis local** con Stockfish, sin límites de Lichess y para todas tus partidas. Está en `entorno/`.
+**Opción B: análisis local** con Stockfish, sin límites de Lichess y para todas tus partidas. Consulta la sección 4.
 
 **Comprobación:** abre el PGN y busca `%eval` y `%clk`. Si no aparecen, falta análisis o relojes. Las partidas repetidas entre exportaciones no dan problemas: el script elimina duplicados por `GameId`. Mide siempre sobre **una sola versión** de cada partida.
 
 ---
 
-## 4. Medir tu progreso con `metricas_pgn.py`
+## 4. Analizar partidas localmente con Stockfish (opcional)
+
+El analizador local escribe evaluaciones y relojes en formato compatible con Lichess. El PGN resultante funciona con `metricas_pgn.py`, `verificar_pgn.py` y el prompt.
+
+### Instalación
+
+Ejecuta estos comandos desde la raíz del proyecto. Python 3.12 y Pipenv deben estar instalados; instala las dependencias del proyecto si aún no lo has hecho:
+
+```
+pipenv install
+```
+
+Stockfish se instala aparte:
+
+- **macOS:** `brew install stockfish`
+- **Debian y Ubuntu:** `sudo apt install stockfish` (queda en `/usr/games/stockfish`)
+- **Windows:** descarga Stockfish desde su web oficial (stockfishchess.org), descomprímelo y anota la ruta del `.exe`.
+
+El script busca el motor en `--motor`, en la variable de entorno `STOCKFISH_PATH`, en el PATH y en las rutas habituales.
+
+Comprueba la instalación y ejecuta el autotest:
+
+```
+pipenv run python entorno/analizar_local.py --autotest --motor /ruta/a/stockfish
+```
+
+Debe terminar con `AUTOTEST OK`. Las pruebas del núcleo que no necesitan motor se ejecutan con:
+
+```
+pipenv run python entorno/pruebas_nucleo.py
+```
+
+### Analizar partidas
+
+```
+pipenv run python entorno/analizar_local.py partidas/peondeloto --salida partidas_analizadas --motor /ruta/a/stockfish
+```
+
+Escribe un `<nombre>_analizado.pgn` por cada PGN de entrada. Las partidas que ya traen evaluaciones se copian sin cambios, salvo que se indique `--reanalizar`.
+
+| Opción | Para qué sirve |
+|---|---|
+| `--profundidad N` | Profundidad por posición (por defecto 16). Más profundidad es más lento y más fiable. |
+| `--nodos N` | Límite de nodos por posición; sustituye a la profundidad. |
+| `--hilos N` y `--hash MB` | Recursos del motor. Con 0 hilos se usa el valor por defecto del motor. |
+| `--reanalizar` | Rehace también las partidas que ya traen evaluaciones. |
+| `--maximo N` | Analiza como mucho N partidas; útil para medir el tiempo antes de procesar todas. |
+
+Puedes interrumpir con Ctrl+C: lo analizado hasta ese momento se guarda. Conviene empezar con `--maximo 1` para medir cuánto tarda en tu equipo.
+
+Los PGN originales de Lichess se quedan en `partidas/`; los analizados localmente van a `partidas_analizadas/`. Mide el progreso **solo sobre una de esas carpetas**, nunca mezcles originales y analizados: si hay dos versiones de la misma partida, el script puede quedarse con la que no tiene evaluaciones.
+
+Para medir partidas analizadas localmente:
+
+```
+pipenv run python metricas_pgn.py partidas_analizadas --usuario peondeloto --ritmo 900+10 --csv progreso/progreso_peondeloto.csv
+```
+
+Para comprobar PGN enriquecidos contra los PGN analizados:
+
+```
+pipenv run python verificar_pgn.py --originales partidas_analizadas --enriquecidos analisis
+```
+
+### Calibrar el análisis
+
+**Validar las reglas sin motor:** el script compara las etiquetas calculadas con las de Lichess:
+
+```
+pipenv run python entorno/validar_umbrales_offline.py partidas
+```
+
+Con las 98 partidas analizadas por Lichess disponibles al construirlo, el acuerdo fue del 99,79 % en 5.657 jugadas con evaluaciones normales y del 97,87 % en 235 casos con mate (reglas aproximadas). Esto valida **la regla**, no el motor.
+
+**Comparar con Stockfish:** vuelve a analizar partidas que Lichess ya evaluó y compara los resultados jugada a jugada:
+
+```
+pipenv run python entorno/calibrar_con_lichess.py partidas --motor /ruta/a/stockfish --maximo 10
+```
+
+Muestra la diferencia de evaluación, el acuerdo de etiquetas y los blunders por partida. Si el acuerdo es bajo, prueba con más profundidad o con `--nodos`. Una vez elegido el ajuste, úsalo siempre igual para las partidas que quieras comparar.
+
+### Limitaciones y problemas frecuentes
+
+- Los resultados pueden diferir de Lichess por el motor y la profundidad. La línea base del perfil se calculó con análisis de Lichess; si cambias al análisis local, conviene reanalizar también las partidas antiguas con `--reanalizar` y recalcularla con el mismo método.
+- Las reglas con mate son aproximadas (97,87 % de acuerdo con Lichess en 235 casos).
+- Solo se analizan partidas estándar. Las variantes y las partidas con jugadas que `python-chess` no reconoce se copian sin analizar, con un aviso.
+- No se añade evaluación a la jugada que da mate, igual que en Lichess. Una partida que acaba por abandono sí lleva evaluación en la última jugada.
+- Si la mejor jugada del motor coincide con la jugada hecha pero la evaluación cae, la jugada se marca igual y no lleva variación; con suficiente profundidad es raro.
+- El núcleo (18 pruebas), las reglas contra las etiquetas de Lichess en 98 partidas y el flujo con un motor simulado se han probado. La parte que usa Stockfish y `python-chess` reales requiere que ejecutes `--autotest` y `calibrar_con_lichess.py` en tu equipo antes de fiarte de los resultados.
+
+| Síntoma | Causa probable y solución |
+|---|---|
+| "Falta python-chess" | Ejecuta `pipenv install` desde la raíz del proyecto. |
+| "No encuentro Stockfish" | Indica la ruta con `--motor` o con la variable `STOCKFISH_PATH`. |
+| El autotest falla en "Checkmate is now unavoidable" | El motor no ve el mate: prueba con más profundidad o comprueba que es Stockfish. |
+| El análisis es muy lento | Baja `--profundidad`, sube `--hilos` o usa `--maximo` para trabajar por tandas. |
+| "Jugada ilegal o no reconocida" | El PGN contiene una variante o está corrupto; la partida se copia sin analizar. |
+| Las métricas salen sin análisis | Comprueba que mediste `partidas_analizadas`, no la carpeta de originales. |
+
+---
+
+## 5. Medir tu progreso con `metricas_pgn.py`
 
 Desde la raíz del proyecto:
 
@@ -112,7 +214,7 @@ El CSV usa `;` y coma decimal para abrirse en Excel en español (en pandas: `sep
 
 ---
 
-## 5. Analizar partidas con el prompt
+## 6. Analizar partidas con el prompt
 
 1. Abre un chat nuevo, pega `prompts/prompt_analisis_partidas_v4.txt` y adjunta `perfil_peondeloto.md` y los PGN (cada partida se procesa por separado). Si quieres, pega también la tabla de progreso.
 2. Si el chat no tiene entorno de código, pega la fila del CSV de cada partida: así los indicadores coinciden con los del script. Sin código ni fila, el prompt omite esa línea.
@@ -137,7 +239,7 @@ Cada chat nuevo parte de cero. Si no quieres repetir el paso 1, crea un **Proyec
 
 ---
 
-## 6. Rutina semanal (5-8 horas)
+## 7. Rutina semanal (5-8 horas)
 
 | Bloque | Horas | Qué hacer |
 |---|---|---|
@@ -152,7 +254,7 @@ Cada chat nuevo parte de cero. Si no quieres repetir el paso 1, crea un **Proyec
 
 ---
 
-## 7. Problemas frecuentes
+## 8. Problemas frecuentes
 
 | Síntoma | Causa probable y solución |
 |---|---|
@@ -168,7 +270,7 @@ Cada chat nuevo parte de cero. Si no quieres repetir el paso 1, crea un **Proyec
 
 ---
 
-## 8. Limitaciones
+## 9. Limitaciones
 
 - **Muestras pequeñas:** con decenas de partidas, una semana mala no demuestra nada.
 - **El rating de una cuenta nueva es provisional** y se mueve mucho al principio.
