@@ -19,12 +19,14 @@ Si usas un modelo de IA para mantener el sistema, pásale también `CONTEXTO_IA.
 El entorno de Python se gestiona desde la raíz del proyecto con Pipenv. Necesitas Python 3.12 y Pipenv instalado. Desde la carpeta del proyecto, ejecuta:
 
 ```
-pipenv install
+pipenv install --dev
 ```
 
-Esto instala las dependencias definidas en `Pipfile` y `Pipfile.lock`. Ejecuta los scripts de Python desde la raíz con `pipenv run python`; no hace falta activar un entorno virtual manualmente. Stockfish se instala aparte y solo es necesario para el análisis local.
+Esto instala las dependencias de ejecución y desarrollo definidas en `Pipfile` y `Pipfile.lock`, incluido `pytest`. Si no vas a ejecutar las pruebas, basta con `pipenv install`. Ejecuta los scripts de Python desde la raíz con `pipenv run python`; no hace falta activar un entorno virtual manualmente. Stockfish se instala aparte y solo es necesario para el análisis local.
 
-No hace falta `setup.py`: el proyecto se ejecuta como un conjunto de scripts y Pipenv ya gestiona sus dependencias. El núcleo cuenta con pruebas unitarias basadas en `unittest`; se pueden ejecutar sin instalar un framework de pruebas. Si más adelante se convierte en un paquete instalable, se puede añadir configuración en `pyproject.toml`.
+El proyecto declara su nombre, versión y versión mínima de Python en `pyproject.toml`; el historial de cambios está en `CHANGELOG.md`. Se sigue versionado semántico: cambios incompatibles aumentan la versión mayor, funciones compatibles la menor y correcciones la versión de parche. Al publicar una versión, actualiza ambos ficheros y crea un tag Git con el mismo número (por ejemplo, `v1.0.0`). El proyecto se ejecuta como un conjunto de scripts y no se instala como paquete.
+
+Las pruebas unitarias se ejecutan con `pytest` y están en `tests/`.
 
 ---
 
@@ -48,10 +50,12 @@ No hace falta `setup.py`: el proyecto se ejecuta como un conjunto de scripts y P
 ajedrez/
 ├── README.md, CONTEXTO_IA.md, perfil_peondeloto.md
 ├── CHANGELOG.md                 historial de versiones del software
-├── Pipfile, Pipfile.lock        entorno Python compartido del proyecto
+├── pyproject.toml               versión del software y configuración de pytest
+├── Pipfile, Pipfile.lock        dependencias y entorno Python compartido
 ├── metricas_pgn.py              métricas de progreso
 ├── verificar_pgn.py             comprobación de los PGN enriquecidos
 ├── analisis_local/               herramientas de análisis local con Stockfish (opcional)
+├── tests/                        pruebas unitarias con pytest
 ├── prompts/
 │   ├── CHANGELOG.md             historial de versiones del prompt
 │   └── prompt_analisis_partidas_v0.txt ... _v4.txt   (la vigente es v4)
@@ -113,13 +117,13 @@ Comprueba la instalación y ejecuta el autotest:
 pipenv run python analisis_local/analizar_local.py --autotest --motor /ruta/a/stockfish
 ```
 
-Debe terminar con `AUTOTEST OK`. Las pruebas del núcleo que no necesitan motor se ejecutan con:
+Debe terminar con `AUTOTEST OK`. Las pruebas unitarias del núcleo que no necesitan motor se ejecutan desde la raíz con:
 
 ```
-pipenv run python analisis_local/pruebas_nucleo.py
+pipenv run pytest
 ```
 
-Este comando ejecuta las pruebas unitarias del núcleo con `unittest`; no requiere Stockfish.
+No requieren Stockfish.
 
 ### Analizar partidas
 

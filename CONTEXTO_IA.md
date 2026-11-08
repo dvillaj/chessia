@@ -30,11 +30,13 @@ ajedrez/
 ├── perfil_peondeloto.md       diagnóstico, áreas de mejora, línea base y objetivos
 ├── metricas_pgn.py            script que calcula las métricas, sin dependencias
 ├── verificar_pgn.py           comprueba que los PGN enriquecidos están completos y bien formados
+├── pyproject.toml              versión del software y configuración de pytest
+├── tests/                       pruebas unitarias del núcleo con pytest
 ├── analisis_local/            herramientas de análisis local con Stockfish (opcional; instrucciones en README.md, sección 4)
 │   ├── analizar_local.py      analiza PGN con Stockfish y escribe el resultado en formato Lichess
 │   ├── calibrar_con_lichess.py   compara el análisis local con el de Lichess
 │   ├── nucleo.py              lógica pura: evaluaciones, clasificación, lectura y escritura de PGN
-│   ├── validar_umbrales_offline.py, pruebas_nucleo.py   validaciones que no necesitan motor
+│   ├── validar_umbrales_offline.py   validación que no necesita motor
 ├── prompts/
 │   ├── CHANGELOG.md           historial de versiones del prompt
 │   └── prompt_analisis_partidas_v0.txt ... _v4.txt   (vigente: v4)
