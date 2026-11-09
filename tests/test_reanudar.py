@@ -8,6 +8,10 @@ ANOTADOR = "analizar_local.py con Stockfish 19, profundidad 20"
 JUGADAS = "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0"
 JUGADAS_ANALIZADAS = ("1. e4 { [%eval 0.30] [%clk 0:15:00] } 1... e5 { [%eval 0.25] [%clk 0:15:00] } "
                       "2. Nf3 { [%eval 0.30] } 2... Nc6 { [%eval 0.28] } 3. Bb5 { [%eval 0.31] } 3... a6 { [%eval 0.35] } 1-0")
+JUGADAS_CON_JUICIOS = ("1. e4 { [%eval 0.30] } 1... e5 { [%eval 0.25] } 2. Nf3 { [%eval 0.30] } "
+                       "2... Nc6?? { (0.30 → 3.00) Blunder. Nf6 was best. } { [%eval 3.00] } 1-0")
+JUGADAS_CON_EVAL_SIN_JUICIOS = ("1. e4 { [%eval 0.30] [%clk 0:15:00] } 1... e5 { [%eval 0.25] [%clk 0:15:00] } "
+                                "2. Nf3 { [%eval 0.25] [%clk 0:14:55] } 2... Nc6 { [%eval 3.00] [%clk 0:14:50] } 1-0")
 
 
 def partida(gid, anotador=None, jugadas=JUGADAS, extra=""):
@@ -42,6 +46,20 @@ def test_reutiliza_lo_ya_analizado_con_el_mismo_ajuste(tmp_path):
     assert [dict(p["cabeceras"])["GameId"] for p in a_analizar] == ["BBBB2222", "CCCC3333"]
     reutilizada = plan[0][1][0][0]
     assert "%eval" in reutilizada["texto"] and dict(reutilizada["cabeceras"])["Annotator"] == ANOTADOR
+
+
+def test_reutiliza_partidas_de_un_fichero_de_salida_con_otro_nombre(tmp_path):
+    ficheros, args = preparar(tmp_path, [partida("AAAA1111"), partida("BBBB2222")])
+    (tmp_path / "out" / "otro_nombre.pgn").write_text(partida("AAAA1111", ANOTADOR, JUGADAS_ANALIZADAS),
+                                                      encoding="utf-8")
+    plan, a_analizar, reanudadas, _ = al.planificar(ficheros, args, ANOTADOR)
+    assert acciones(plan) == ["reanudada", "analizar"] and reanudadas == 1 and len(a_analizar) == 1
+
+
+def test_la_salida_va_a_un_subdirectorio_por_usuario(tmp_path):
+    ficheros, args = preparar(tmp_path, [partida("AAAA1111")])
+    plan, _, _, _ = al.planificar(ficheros, args, ANOTADOR)
+    assert plan[0][0] == str(tmp_path / "out" / tmp_path.name / "entrada_analizado.pgn")
 
 
 def test_una_partida_cortada_por_el_apagado_se_rehace(tmp_path):
@@ -92,7 +110,19 @@ def test_sin_fichero_previo_se_analiza_todo(tmp_path):
 
 
 def test_lo_que_ya_trae_analisis_de_lichess_se_copia_aunque_haya_previa(tmp_path):
-    con_eval = partida("AAAA1111", "lichess.org", JUGADAS_ANALIZADAS)
+    con_eval = partida("AAAA1111", "lichess.org", JUGADAS_CON_JUICIOS)
     ficheros, args = preparar(tmp_path, [con_eval], [partida("AAAA1111", ANOTADOR, JUGADAS_ANALIZADAS)])
     plan, _, reanudadas, _ = al.planificar(ficheros, args, ANOTADOR)
     assert acciones(plan) == ["ya_analizada"] and reanudadas == 0
+
+
+def test_con_eval_pero_sin_comentarios_se_etiqueta_sin_motor(tmp_path):
+    ficheros, args = preparar(tmp_path, [partida("AAAA1111", jugadas=JUGADAS_CON_EVAL_SIN_JUICIOS)])
+    plan, a_analizar, _, _ = al.planificar(ficheros, args, ANOTADOR)
+    assert acciones(plan) == ["etiquetar"] and a_analizar == []
+    texto, js = al.etiquetar_texto_partida(plan[0][1][0][0])
+    assert [j["juicio"]["severidad"] if j["juicio"] else None for j in js] == [None, None, None, "Blunder"]
+    assert "2... Nc6?? { (0.25 → 3.00) Blunder. } { [%eval 3.00] [%clk 0:14:50] }" in texto
+    assert texto.startswith('[Event "x"]') and texto.rstrip().endswith("1-0")
+    # el resultado ya trae comentarios: en una segunda pasada se copia tal cual
+    assert al.n.tiene_juicios(al.n.leer_jugadas(texto.split("\n\n", 1)[1]))

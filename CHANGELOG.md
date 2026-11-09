@@ -28,6 +28,13 @@ se mantiene por separado en [`prompts/CHANGELOG.md`](prompts/CHANGELOG.md).
 
 ### Corregido
 
+- `descargar_lichess.py` pedía `literate=false`, así que las partidas analizadas por Lichess llegaban con `%eval`
+  pero sin los comentarios Inaccuracy, Mistake y Blunder, y `metricas_pgn.py` les contaba 0 errores (en
+  peondeloto, 1,27 blunders por partida en la línea base en lugar de 2,41). Ahora pide `literate=true`.
+- `analizar_local.py` copiaba sin cambios esas partidas por traer `%eval`. Ahora les añade los comentarios a partir
+  de sus propias evaluaciones, con `nucleo.valorar` y sin motor (nuevas `nucleo.etiquetar_desde_evals` y
+  `nucleo.tiene_juicios`). La primera jugada no se clasifica y no hay mejor jugada ni variación. Pruebas en
+  `tests/test_nucleo.py` y `tests/test_reanudar.py`.
 - `calibrar_con_lichess.py` fallaba con `AttributeError` desde la 1.1.0 por no definir `--tiempo`. Ahora usa
   la profundidad por defecto de `analizar_local.py` (20) y envía `ucinewgame` antes de cada partida.
 

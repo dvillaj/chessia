@@ -77,11 +77,17 @@ Sin análisis no hay errores que medir y sin relojes no hay gestión del tiempo.
 - En la página de cada partida terminada, pulsa el botón para **solicitar el análisis del ordenador**. Lichess puede limitar los análisis seguidos, así que conviene pedirlos pronto. Pídelo en **todas** las partidas de 15+10, no solo en las perdidas.
 - Exporta desde `https://lichess.org/games/export/peondeloto` marcando relojes y evaluaciones (los nombres exactos de las opciones pueden cambiar). O con la API:
 
+```bash
+source .env
+user=peondeloto
+fecha=$(date +%Y-%m-%d)
+mkdir -p "partidas/$user"
+curl -H "Accept: application/x-chess-pgn" -H "Authorization: Bearer $LICHESS_TOKEN" \
+  "https://lichess.org/api/games/user/$user?perfType=rapid&analysed=true&clocks=true&evals=true&literate=true&opening=true&max=5000000" \
+  -o "partidas/$user/lichess_${user}_${fecha}.pgn"
 ```
-curl -H "Accept: application/x-chess-pgn" \
-  "https://lichess.org/api/games/user/peondeloto?perfType=rapid&analysed=true&clocks=true&evals=true&opening=true&max=50" \
-  -o partidas/peondeloto/lichess_peondeloto_2026-11-10.pgn
-```
+
+**Descarga incremental (recomendada):** `pipenv run python descargar_lichess.py peondeloto` baja todas las partidas del usuario a `partidas/peondeloto/` con relojes, evaluaciones, comentarios de errores, apertura y precisión, usando `LICHESS_TOKEN` de `.env`. Las siguientes ejecuciones solo traen las partidas posteriores a la última que ya tienes (`--completa` para rehacerlo todo, `--tipo rapid` o `--solo-analizadas` para filtrar). Detalles en la cabecera del script.
 
 Los parámetros están documentados en `https://lichess.org/api`; compruébalos allí. `perfType=rapid` incluye 10+0 y 15+10; el filtro exacto se hace luego con `--ritmo 900+10`.
 
@@ -140,7 +146,7 @@ No requieren Stockfish. Incluyen una comprobación de la regla de etiquetas cont
 pipenv run python analisis_local/analizar_local.py partidas/peondeloto --salida partidas_analizadas
 ```
 
-Escribe un `<nombre>_analizado.pgn` por cada PGN de entrada. Las partidas que ya traen evaluaciones se copian sin cambios, salvo que se indique `--reanalizar`. Si se indican varios límites, manda este orden: `--nodos`, `--tiempo`, `--profundidad`. El motor recibe `ucinewgame` al empezar cada partida, así que no arrastra la tabla hash de la anterior.
+Escribe un `<nombre>_analizado.pgn` por cada PGN de entrada. Las partidas que ya traen evaluaciones se copian sin cambios, salvo que se indique `--reanalizar`. Si traen `%eval` pero no los comentarios Inaccuracy, Mistake y Blunder (exportadas sin `literate=true`), se les añaden a partir de sus propias evaluaciones, con la misma regla y sin usar el motor. Si se indican varios límites, manda este orden: `--nodos`, `--tiempo`, `--profundidad`. El motor recibe `ucinewgame` al empezar cada partida, así que no arrastra la tabla hash de la anterior.
 
 Si la partida no trae las cabeceras `ECO` y `Opening`, el analizador las añade como hace Lichess, con su base pública de aperturas (`chess-openings`, CC0, guardada en `analisis_local/base_aperturas/`; origen y forma de actualizarla en su `LEEME.md`). La búsqueda es por posición, así que las transposiciones dan el mismo resultado. Las partidas exportadas de Lichess ya las traen y no se tocan. Sobre 865 partidas de Lichess, el resultado coincidió con su etiqueta en el 97,5 %; las diferencias vienen de que la base del repositorio es más reciente que la que usa Lichess (nombres renombrados o líneas más profundas añadidas).
 

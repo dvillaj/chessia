@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Pruebas del núcleo que no necesitan python-chess ni Stockfish."""
+import re
+
 import pytest
 
 from analisis_local import nucleo as n
@@ -89,6 +91,17 @@ class TestLecturaEscritura:
         assert js[5]["juicio"]["severidad"] == "Blunder"  # sale del glifo ??
         assert js[5]["eval"] == ("mate", 3)
         assert js[2]["clk"] == "0:15:08"
+
+    def test_etiquetar_desde_evals_reproduce_la_muestra(self):
+        mv = n.separar_partidas(MUESTRA)[0]["movimientos"]
+        originales = n.leer_jugadas(mv)
+        sin_comentarios = re.sub(r"\{ \([^}]*\} |\( [^)]*\) |\?\?", "", mv)
+        js = n.leer_jugadas(sin_comentarios)
+        assert not n.tiene_juicios(js) and n.tiene_juicios(originales)
+        n.etiquetar_desde_evals(js)
+        clave = lambda j: (j["juicio"]["severidad"], j["juicio"]["frase"]) if j["juicio"] else None
+        assert [clave(j) for j in js] == [clave(j) for j in originales]
+        assert all(j["juicio"]["mejor"] is None for j in js if j["juicio"])
 
     def test_ida_y_vuelta(self):
         partida = n.separar_partidas(MUESTRA)[0]

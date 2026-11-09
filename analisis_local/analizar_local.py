@@ -26,7 +26,9 @@ largo, lo que provoca diferencias con el analisis de Lichess.
 
 El motor se busca, por este orden, en --motor, en la variable de entorno STOCKFISH_PATH, en el PATH y en
 las rutas habituales. Las partidas que ya traen evaluaciones se copian sin cambios, salvo con --reanalizar.
-Se escribe un fichero <nombre>_analizado.pgn por cada PGN de entrada, partida a partida y en el orden original:
+Si traen %eval pero no los comentarios Inaccuracy, Mistake y Blunder (exportadas con literate=false), se
+anaden esos comentarios a partir de sus propias evaluaciones, con la misma regla y sin usar el motor.
+Se escribe un fichero <salida>/<carpeta del PGN>/<nombre>_analizado.pgn por cada PGN de entrada, partida a partida y en el orden original:
 si se interrumpe, queda guardado todo lo hecho hasta ese momento.
 
 --procesos N analiza N partidas a la vez, cada una con su propio Stockfish (--hilos, por defecto 1, y --hash MB
@@ -185,6 +187,12 @@ def analizar_texto_partida(p, ajedrez, motor, libro=None):
     return n.escribir_partida(cab, jugadas, p["resultado"]), jugadas
 
 
+def etiquetar_texto_partida(p):
+    """Partida con %eval pero sin comentarios de Lichess: anade Inaccuracy, Mistake y Blunder sin usar el motor."""
+    jugadas = n.etiquetar_desde_evals(n.leer_jugadas(p["movimientos"]))
+    return n.escribir_partida(p["cabeceras"], jugadas, p["resultado"]), jugadas
+
+
 def base_aperturas_disponible():
     return all(os.path.isfile(os.path.join(aperturas.DIRECTORIO, f"{letra}.tsv")) for letra in "abcde")
 
@@ -226,40 +234,48 @@ def termina_con_resultado(p):
     return bool(toks) and toks[-1] in n.RESULTADOS
 
 
-def partidas_previas(destino, anotador):
-    """Partidas de una salida anterior hechas con este mismo ajuste: ({clave: partida}, las que usan otro ajuste)."""
-    if not os.path.isfile(destino):
-        return {}, 0
-    with open(destino, encoding="utf-8", errors="replace") as fh:
-        partidas = n.separar_partidas(fh.read())
+def partidas_previas(salida, anotador):
+    """
+    Partidas de cualquier PGN de la carpeta de salida (con independencia de su nombre) hechas con este mismo
+    ajuste: ({clave: partida}, cuantas usan otro ajuste).
+    """
     validas, otro_ajuste = {}, 0
-    for p in partidas:
-        cab = dict(p["cabeceras"])
-        anot = cab.get("Annotator", "")
-        if not anot.startswith("analizar_local.py"):
-            continue
-        if anot != anotador:
-            otro_ajuste += 1
-        elif clave_partida(cab):
-            validas[clave_partida(cab)] = p
+    for f in sorted(glob.glob(os.path.join(salida, "**", "*.pgn"), recursive=True)):
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            partidas = n.separar_partidas(fh.read())
+        for p in partidas:
+            cab = dict(p["cabeceras"])
+            anot = cab.get("Annotator", "")
+            if not anot.startswith("analizar_local.py"):
+                continue
+            if anot != anotador:
+                otro_ajuste += 1
+            elif clave_partida(cab):
+                validas[clave_partida(cab)] = p
     return validas, otro_ajuste
+
+
+def destino_de(fichero, salida):
+    """<salida>/<carpeta del PGN>/<nombre>_analizado.pgn: un subdirectorio por usuario (carpeta de origen)."""
+    carpeta = os.path.basename(os.path.dirname(os.path.abspath(fichero)))
+    return os.path.join(salida, carpeta, os.path.splitext(os.path.basename(fichero))[0] + "_analizado.pgn")
 
 
 def planificar(ficheros, args, anotador):
     """
     Devuelve (plan, a_analizar, reanudadas, otro_ajuste).
     plan: por fichero, su destino y sus (partida, accion); a_analizar: las partidas a analizar, en orden.
-    Una partida ya presente en la salida anterior, completa, con las mismas jugadas y hecha con el mismo
+    Una partida ya presente en cualquier PGN de la carpeta de salida, completa, con las mismas jugadas y hecha con el mismo
     motor y limite, se reutiliza (accion "reanudada") en lugar de analizarla otra vez.
     """
     plan, a_analizar = [], []
-    reanudadas = otro_ajuste = 0
+    reanudadas = 0
+    previas, otro_ajuste = partidas_previas(args.salida, anotador)
     for f in ficheros:
         with open(f, encoding="utf-8", errors="replace") as fh:
             partidas = n.separar_partidas(fh.read())
-        destino = os.path.join(args.salida, os.path.splitext(os.path.basename(f))[0] + "_analizado.pgn")
-        previas, otras = partidas_previas(destino, anotador)
-        otro_ajuste += otras
+        destino = destino_de(f, args.salida)
+        os.makedirs(os.path.dirname(destino), exist_ok=True)
         items = []
         for p in partidas:
             cab = dict(p["cabeceras"])
@@ -267,7 +283,7 @@ def planificar(ficheros, args, anotador):
             if cab.get("Variant", "Standard") != "Standard":
                 accion = "variante"
             elif "%eval" in p["movimientos"] and not args.reanalizar:
-                accion = "ya_analizada"
+                accion = "ya_analizada" if n.tiene_juicios(n.leer_jugadas(p["movimientos"])) else "etiquetar"
             elif previa and termina_con_resultado(previa) and jugadas_san(previa) == jugadas_san(p):
                 accion = "reanudada"
                 p = previa
@@ -369,10 +385,14 @@ def procesar(args):
     if reanudadas:
         print(f"{reanudadas} partidas ya estaban analizadas con este mismo motor y limite en una ejecucion anterior: se reutilizan")
     if otro_ajuste:
-        print(f"AVISO: {otro_ajuste} partidas de la salida anterior se hicieron con otro motor o limite y se rehacen; "
-              f"el fichero se sobrescribe")
+        print(f"AVISO: {otro_ajuste} partidas de la salida anterior se hicieron con otro motor o limite y no se "
+              f"reutilizan; los ficheros de salida con el mismo nombre se sobrescriben")
+    a_etiquetar = sum(1 for _, items in plan for _, accion in items if accion == "etiquetar")
     if ya_analizadas:
         print(f"{ya_analizadas} partidas ya traen analisis y se copian sin cambios (usa --reanalizar para rehacerlas)")
+    if a_etiquetar:
+        print(f"{a_etiquetar} partidas traen %eval pero no los comentarios de Lichess: se anaden Inaccuracy, Mistake y "
+              f"Blunder con sus evaluaciones, sin motor (usa --reanalizar para analizarlas con Stockfish)")
     ex = None
     futuros = []
     if a_analizar:
@@ -397,6 +417,8 @@ def procesar(args):
                         escribir_partida(out, p["texto"])
                     elif accion in ("ya_analizada", "copiar", "reanudada"):
                         escribir_partida(out, p["texto"])
+                    elif accion == "etiquetar":
+                        escribir_partida(out, etiquetar_texto_partida(p)[0])
                     else:
                         texto, semijugadas, resumen, error, segundos = esperar(next(siguiente), futuros, progreso)
                         consumidas += 1

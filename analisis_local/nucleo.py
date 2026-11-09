@@ -273,6 +273,26 @@ def analizar_partida(jugadas, ajedrez, motor, pv_max=8):
     return jugadas
 
 
+def tiene_juicios(jugadas):
+    """True si alguna jugada trae un comentario Inaccuracy, Mistake, Blunder o de mate."""
+    return any(j.get("juicio") for j in jugadas)
+
+
+def etiquetar_desde_evals(jugadas):
+    """
+    Anade la clasificacion a partir de las evaluaciones que ya trae cada jugada, sin motor. Sirve para partidas
+    exportadas de Lichess con %eval pero sin sus comentarios (literate=false). No hay mejor jugada ni variacion.
+    La primera jugada no se clasifica: falta la evaluacion de la posicion inicial. Supone la posicion inicial
+    estandar (empiezan las blancas). Devuelve la lista de jugadas actualizada (la misma lista).
+    """
+    for i, j in enumerate(jugadas):
+        antes = jugadas[i - 1]["eval"] if i > 0 else None
+        v = valorar(antes, j["eval"], "W" if i % 2 == 0 else "B")
+        j["juicio"] = ({"severidad": v["severidad"], "frase": v["frase"], "antes": antes, "despues": j["eval"],
+                        "mejor": None} if v else None)
+    return jugadas
+
+
 # ----------------------------------------------------------------------------- comparacion de analisis
 def comparar_analisis(ref, loc):
     """
