@@ -11,3 +11,4 @@ Pipfile.lock
 /perfiles/*
 !/perfiles/_plantilla.md
 __pycache__/
+.vscode/
