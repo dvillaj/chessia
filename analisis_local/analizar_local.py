@@ -13,11 +13,11 @@ El resultado se puede usar tal cual con metricas_pgn.py, verificar_pgn.py y el p
 REQUISITOS  python-chess (pipenv install desde la raíz) y un ejecutable de Stockfish.
 
 USO
-  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --motor /ruta/a/stockfish
-  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --profundidad 22 --salida partidas_analizadas
-  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --tiempo 2 --hilos 4
-  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --nodos 2000000
-  pipenv run python analisis_local/analizar_local.py partidas/peondeloto --procesos 6
+  pipenv run python analisis_local/analizar_local.py partidas/dvillaj131313 --motor /ruta/a/stockfish
+  pipenv run python analisis_local/analizar_local.py partidas/dvillaj131313 --profundidad 22 --salida partidas_analizadas
+  pipenv run python analisis_local/analizar_local.py partidas/dvillaj131313 --tiempo 2 --hilos 4
+  pipenv run python analisis_local/analizar_local.py partidas/dvillaj131313 --nodos 2000000
+  pipenv run python analisis_local/analizar_local.py partidas/dvillaj131313 --procesos 6
   pipenv run python analisis_local/analizar_local.py --autotest --motor /ruta/a/stockfish
 
 LIMITE DE ANALISIS (por posicion). Si se dan varios, manda este orden: --nodos, --tiempo, --profundidad.

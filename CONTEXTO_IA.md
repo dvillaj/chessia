@@ -2,19 +2,16 @@
 
 Documento escrito para que un asistente de IA entienda este proyecto antes de ayudar. Léelo entero al empezar una sesión. Si algo de aquí contradice lo que dice el usuario en el chat, manda el usuario, pero avísale de la diferencia.
 
-Última actualización: 8 nov 2026. Versión vigente del prompt: **v4**. Versión del software: **1.1.0** (ver `CHANGELOG.md`).
+Última actualización: 11 nov 2026. Versión vigente del prompt: **v6**. Versión del software: **1.2.0** (ver `CHANGELOG.md`).
 
 ---
 
 ## 1. Qué es el proyecto
 
-Un sistema para que una persona mejore su nivel de ajedrez midiendo su progreso con datos.
+Un sistema para que varias personas mejoren su nivel de ajedrez midiendo su progreso con datos. Cada una tiene un perfil en `perfiles/<usuario>.md`.
 
-- **Usuario:** habla español. Juega en Lichess y quiere usar **exclusivamente herramientas de Lichess** para entrenar.
-- **Cuentas:**
-  - `peondeloto`: la cuenta donde quiere mejorar. Es nueva, con rating provisional de unos 1570 en 15+10.
-  - `dvillaj131313`: la cuenta antigua, de la que sale el diagnóstico inicial (805 partidas del 4 jul al 1 nov 2026; 767 son 10+0 y solo 80 traen análisis de Stockfish).
-- **Objetivo:** llegar a **1850 en partidas rápidas 15+10**.
+- **Usuarios:** hablan español. Juega en Lichess y quiere usar **exclusivamente herramientas de Lichess** para entrenar.
+- **Datos de cada usuario:** su usuario de Lichess, su ritmo, su Elo y su objetivo están en la cabecera de su perfil (`perfiles/<usuario>.md`). No los supongas ni los copies de este documento. Hoy hay un perfil, `dvillaj131313`, con 10+0 y objetivo 1850.
 - **Dedicación:** 5 a 8 horas semanales, incluyendo jugar, revisar, táctica, aperturas y finales.
 
 Ejemplos de lo que se espera de ti: analizar partidas con el prompt, interpretar la tabla de progreso, proponer una versión nueva del prompt, actualizar el perfil o explicar el sistema.
@@ -29,7 +26,8 @@ chessia/
 ├── CONTEXTO_IA.md             este documento
 ├── CHANGELOG.md               historial de versiones del software (el del prompt está en prompts/)
 ├── Pipfile, Pipfile.lock      dependencias; los scripts se ejecutan con pipenv run python
-├── perfil_peondeloto.md       diagnóstico, áreas de mejora, línea base y objetivos
+├── perfiles/                  un perfil por usuario: cabecera (usuario, ritmo, elo, objetivo) y diagnóstico; no se versiona salvo _plantilla.md
+├── perfiles.py                crea perfiles y actualiza el Elo desde la API de Lichess
 ├── metricas_pgn.py            script que calcula las métricas, sin dependencias
 ├── verificar_pgn.py           comprueba que los PGN enriquecidos están completos y bien formados
 ├── pyproject.toml              versión del software y configuración de pytest
@@ -43,7 +41,7 @@ chessia/
 │   ├── validar_umbrales_offline.py   validación que no necesita motor; solo usa partidas con Annotator "lichess.org"
 ├── prompts/
 │   ├── CHANGELOG.md           historial de versiones del prompt
-│   └── prompt_analisis_partidas_v0.txt ... _v4.txt   (vigente: v4)
+│   └── prompt_analisis_partidas_v0.txt ... _v6.txt   (vigente: v6); prompt_crear_perfil_v0.txt crea el perfil de un usuario nuevo
 ├── partidas/                  exportaciones de Lichess en PGN (originales, no se tocan)
 ├── partidas_analizadas/       PGN analizados en local (opcional)
 ├── analisis/                  PGN enriquecidos que entrega el prompt, un .pgn por partida
@@ -56,12 +54,12 @@ chessia/
 |---|---|
 | Métricas y agregados | `metricas_pgn.py`. Nunca los recalcules de memoria. |
 | Que un PGN enriquecido está completo y bien formado | `verificar_pgn.py`. Lo que diga el modelo sobre su propia salida no sustituye a esta comprobación. |
-| Diagnóstico, áreas de mejora (A1-A7), fuertes (S1-S4), línea base y objetivos | `perfil_peondeloto.md` |
+| Diagnóstico, áreas de mejora (A1-A7), fuertes (S1-S4), línea base y objetivos | `perfiles/<usuario>.md` |
 | Evaluaciones y etiquetas de error cuando se analiza en local | `analisis_local/analizar_local.py` y la regla de `analisis_local/nucleo.py` |
 | Cómo se explica cada partida | el prompt vigente |
 | Qué cambió entre versiones del prompt | `prompts/CHANGELOG.md` |
 
-**Numeración de prompts:** de v0 (el original) a v4, sin huecos. Antes de la renumeración se llamaban v1 (el original), v2, v3 y v4; la tabla de equivalencias está en `prompts/CHANGELOG.md`. Si el usuario usa un nombre antiguo, tradúcelo con esa tabla.
+**Numeración de prompts:** de v0 (el original) a v6, sin huecos. Antes de la renumeración se llamaban v1 (el original), v2, v3 y v4; la tabla de equivalencias está en `prompts/CHANGELOG.md`. Si el usuario usa un nombre antiguo, tradúcelo con esa tabla.
 
 ---
 
@@ -78,10 +76,10 @@ chessia/
 
 ## 4. Flujo de trabajo
 
-1. El usuario juega 15+10 en peondeloto.
+1. El usuario juega su ritmo habitual (el de la cabecera de su perfil).
 2. Consigue evaluaciones: pide el análisis del ordenador en Lichess y exporta los PGN con relojes y evaluaciones, o analiza las partidas en local con `analisis_local/analizar_local.py` (Stockfish). Mide siempre sobre una sola versión de cada partida.
 3. Guarda los originales en `partidas/` y ejecuta `metricas_pgn.py` para ver el progreso.
-4. En un chat, pega el prompt y adjunta `perfil_peondeloto.md` y los PGN. Recibe un PGN enriquecido por partida, como fichero si el chat puede crearlos o como bloque de código si no.
+4. En un chat, pega el prompt y adjunta el perfil del usuario (`perfiles/<usuario>.md`) y los PGN. El prompt no lleva datos del jugador: todo sale del perfil. Recibe un PGN enriquecido por partida, como fichero si el chat puede crearlos o como bloque de código si no.
 5. Guarda los PGN enriquecidos en `analisis/` y ejecuta `verificar_pgn.py` para comprobar que no falta ninguna jugada.
 6. Importa cada PGN verificado en un Estudio de Lichess para repasarlo.
 7. Cada 20-30 partidas, compara la tabla del script con la línea base y los objetivos, y actualiza el perfil.
@@ -89,13 +87,13 @@ chessia/
 Comando habitual del script:
 
 ```
-python metricas_pgn.py partidas/peondeloto --usuario peondeloto --ritmo 900+10 --base-hasta 2026-11-03 --csv progreso/progreso_peondeloto.csv
+python metricas_pgn.py partidas/<usuario> --usuario <usuario> --csv progreso/progreso_<usuario>.csv   # ritmo y base-hasta salen del perfil
 ```
 
 Comprobación de la salida del prompt:
 
 ```
-python verificar_pgn.py --originales partidas/peondeloto --enriquecidos analisis
+python verificar_pgn.py --originales partidas/<usuario> --enriquecidos analisis
 ```
 
 ---
@@ -118,7 +116,7 @@ Los objetivos del perfil (por ejemplo, 1,2 blunders por partida o mediana de 8 s
 
 ---
 
-## 6. Reglas del PGN enriquecido (resumen del prompt v4)
+## 6. Reglas del PGN enriquecido (resumen del prompt v6)
 
 El formato está pensado para importarse en un Estudio de Lichess sin fallos. Resumen, no sustituye al prompt:
 
@@ -142,13 +140,12 @@ El formato está pensado para importarse en un Estudio de Lichess sin fallos. Re
 ## 7. Estado actual
 
 **Resultados del diagnóstico** (detalle en el perfil):
-- peondeloto (21 partidas 15+10): 31 % de puntos, mediana de 3 s por jugada, 14 % del tiempo disponible usado frente a 51 % del rival, 2,5 blunders por partida en las 10 analizadas, 48 % de partidas perdidas en menos de 25 jugadas.
 - dvillaj131313 (767 partidas 10+0): 50 % de puntos, 2,36 blunders por partida en las 80 analizadas, 23 de 80 partidas analizadas con ventaja de +3,0 o más que no se ganaron.
 
 **Pruebas del prompt realizadas:**
-- v0 con tres partidas de peondeloto (una sin evaluaciones, dos con ellas). Destapó los problemas corregidos en v1.
+- v0 con tres partidas del usuario (una sin evaluaciones, dos con ellas). Destapó los problemas corregidos en v1.
 - v2 con una partida sin evaluaciones. Destapó los problemas corregidos en v3.
-- **v3 y v4 no se han probado todavía.** Tampoco se ha probado ninguna versión en un chat nuevo: las pruebas se hicieron en una conversación donde el ejecutor ya conocía los fallos, así que no miden que un modelo la cumpla a la primera.
+- **v3 a v6 no se han probado todavía.** Tampoco se ha probado ninguna versión en un chat nuevo: las pruebas se hicieron en una conversación donde el ejecutor ya conocía los fallos, así que no miden que un modelo la cumpla a la primera.
 
 **Análisis local** (`analisis_local/`):
 - Probado: la lógica pura (18 pruebas), la regla de clasificación contra Lichess (99,79 % y 97,87 %) y el flujo completo con un motor simulado sobre dos partidas reales.
@@ -158,7 +155,7 @@ El formato está pensado para importarse en un Estudio de Lichess sin fallos. Re
 
 **Pendiente:**
 - Ejecutar la calibración con Stockfish real (y confirmar el autotest). Si el usuario pasa a análisis local, reanalizar las partidas antiguas y recalcular la línea base con el mismo método.
-- Probar la v4 con una partida analizada: modo fichero, línea de indicadores y verificación con `verificar_pgn.py`.
+- Probar la v6 con una partida analizada: modo fichero, línea de indicadores y verificación con `verificar_pgn.py`.
 - Reescribir el apartado "veredicto honesto" del prompt sin signos de interrogación, que el modelo podría copiar y romper la regla de caracteres seguros.
 - Decidir si los "Patrones recurrentes" salen del prompt y se apoyan solo en el perfil.
 - Revisar el objetivo del 40 % del tiempo disponible cuando haya más datos.
@@ -172,7 +169,7 @@ El formato está pensado para importarse en un Estudio de Lichess sin fallos. Re
 **Antes de analizar un fichero**, comprueba que es lo que parece:
 - Busca `%eval` y `%clk`. Si el usuario dice que está analizado y no hay `%eval`, díselo.
 - Compara con ficheros anteriores (por ejemplo, con un hash) por si es el mismo.
-- Comprueba quién es el jugador y el ritmo (`TimeControl 900+10` es 15+10).
+- Comprueba quién es el jugador y el ritmo (`TimeControl 600+0` es 10+0).
 - Si faltan evaluaciones, ofrece las dos vías: análisis de Lichess o análisis local. No digas que el análisis local está validado con Stockfish real mientras no lo haya probado el usuario.
 
 **Al crear una versión nueva del prompt:**
@@ -214,4 +211,4 @@ El formato está pensado para importarse en un Estudio de Lichess sin fallos. Re
 - **Semijugada:** movimiento de un solo bando. Una jugada completa tiene dos.
 - **`%clk` y `%eval`:** etiquetas de reloj y de evaluación de Stockfish que Lichess puede incluir en los comentarios del PGN.
 - **Estudio de Lichess:** herramienta de Lichess donde se importan y repasan partidas anotadas.
-- **15+10:** 15 minutos más 10 segundos de incremento por jugada (`900+10`).
+- **10+0:** 10 minutos sin incremento (`600+0`).

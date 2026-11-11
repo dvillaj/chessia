@@ -50,7 +50,7 @@ def test_stream_separa_partidas_y_detecta_truncadas():
 
 
 def test_url_incluye_parametros():
-    url = d.construir_url("peondeloto", 123, ["rapid", "blitz"], True)
+    url = d.construir_url("dvillaj131313", 123, ["rapid", "blitz"], True)
     assert "since=123" in url and "perfType=rapid%2Cblitz" in url and "analysed=true" in url
     assert "clocks=true" in url and "evals=true" in url and "sort=dateAsc" in url
     assert "literate=true" in url

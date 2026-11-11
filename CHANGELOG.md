@@ -5,6 +5,25 @@ se mantiene por separado en [`prompts/CHANGELOG.md`](prompts/CHANGELOG.md).
 
 ## [Sin publicar]
 
+## [1.2.0] - 2026-11-11
+
+### Añadido
+
+- Varios usuarios: un perfil por usuario en `perfiles/<usuario>.md`, con cabecera (usuario, ritmo, elo, objetivo,
+  base_hasta) y plantilla en `perfiles/_plantilla.md`. Nuevo módulo `perfiles.py` (crear perfil, consultar y guardar
+  el Elo con la API de Lichess) y pruebas en `tests/test_perfiles.py`.
+- `descargar_lichess.py` actualiza el Elo del perfil al terminar. `metricas_pgn.py` toma ritmo y `base_hasta` del
+  perfil (`--perfil` para indicar otro).
+- `metricas_pgn.py` guarda la tabla resumen en `tabla_<usuario>.md` junto al CSV (o donde indique `--tabla`),
+  para poder adjuntarla al prompt de crear perfil.
+- `prompts/prompt_crear_perfil_v0.txt`: completa el perfil de un usuario nuevo a partir de las métricas.
+
+### Cambiado
+
+- Prompt de análisis v6: sin datos del jugador; todo sale del perfil que se adjunta en cada chat.
+- `perfiles/`, `partidas/` y `progreso/` pasan a `.gitignore` y se dejan de versionar (datos personales).
+- Se elimina la segunda cuenta que usaban los datos de ejemplo; el perfil vigente es `perfiles/dvillaj131313.md`.
+
 ### Añadido
 
 - `analizar_local.py` añade las cabeceras `ECO` y `Opening` a las partidas que no las traen, con la base

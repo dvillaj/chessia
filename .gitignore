@@ -5,3 +5,9 @@ Pipfile.lock
 /.vscode
 /.claude
 /partidas_analizadas/
+# Datos personales de cada usuario (solo se versiona la plantilla de perfil)
+/partidas/
+/progreso/
+/perfiles/*
+!/perfiles/_plantilla.md
+__pycache__/

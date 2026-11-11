@@ -9,14 +9,16 @@ Inaccuracy, Mistake y Blunder, que necesita metricas_pgn.py para contar errores.
 posteriores a la ultima que ya tienes en la carpeta (se deduce de UTCDate/UTCTime de los PGN existentes).
 Cada ejecucion crea un fichero nuevo lichess_<usuario>_<AAAA-MM-DD>.pgn, sin tocar los anteriores.
 
+Si existe perfiles/<usuario>.md, al terminar se consulta el rating actual en Lichess y se guarda en su cabecera.
+
 El token se lee de LICHESS_TOKEN (variable de entorno o fichero .env en la raiz del proyecto).
 
 USO
-  pipenv run python descargar_lichess.py peondeloto
-  pipenv run python descargar_lichess.py peondeloto --tipo rapid --tipo classical
-  pipenv run python descargar_lichess.py peondeloto --solo-analizadas
-  pipenv run python descargar_lichess.py peondeloto --completa          # ignora lo ya descargado
-  pipenv run python descargar_lichess.py peondeloto --desde 2026-01-01  # fuerza la fecha de inicio (UTC)
+  pipenv run python descargar_lichess.py dvillaj131313
+  pipenv run python descargar_lichess.py dvillaj131313 --tipo rapid --tipo classical
+  pipenv run python descargar_lichess.py dvillaj131313 --solo-analizadas
+  pipenv run python descargar_lichess.py dvillaj131313 --completa          # ignora lo ya descargado
+  pipenv run python descargar_lichess.py dvillaj131313 --desde 2026-01-01  # fuerza la fecha de inicio (UTC)
 
 Las partidas se piden en orden cronologico y se guardan segun llegan: si se interrumpe, lo descargado queda
 guardado y la siguiente ejecucion continua desde ahi. Las partidas que ya existen (mismo GameId) se omiten.
@@ -34,6 +36,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+
+import perfiles
 
 RAIZ = os.path.dirname(os.path.abspath(__file__))
 URL = "https://lichess.org/api/games/user/{usuario}"
@@ -217,6 +221,10 @@ def descargar(args, token):
         print("No hay partidas nuevas.")
     if omitidas:
         print(f"{omitidas} partidas omitidas por estar ya descargadas")
+    if perfiles.leer(args.usuario) is not None:
+        elo = perfiles.actualizar_elo(args.usuario)
+        if elo:
+            print(f"Elo actual de {args.usuario}: {elo} (guardado en perfiles/{args.usuario}.md)")
 
 
 def main():

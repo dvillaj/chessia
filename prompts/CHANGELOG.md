@@ -1,6 +1,6 @@
 # Changelog del prompt de análisis de partidas
 
-**Versión vigente: v4** (`prompt_analisis_partidas_v4.txt`).
+**Versión vigente: v6** (`prompt_analisis_partidas_v6.txt`).
 
 | Versión | Fichero | Resumen |
 |---|---|---|
@@ -9,8 +9,11 @@
 | v2 | `prompt_analisis_partidas_v2.txt` | Añade una línea de indicadores por partida y sube el límite del debriefing a 450 palabras. |
 | v3 | `prompt_analisis_partidas_v3.txt` | Porcentaje de reloj sobre el tiempo disponible, coma decimal uniforme y menos redundancia. |
 | v4 | `prompt_analisis_partidas_v4.txt` | Entrega de cada partida como fichero y reglas de completitud para que no falte ninguna jugada. |
+| v5 | `prompt_analisis_partidas_v5.txt` | Pasa a una sola cuenta, dvillaj131313, en 10+0; el incremento se lee de la cabecera en lugar de fijarlo en 10 s. |
+| v6 | `prompt_analisis_partidas_v6.txt` | Sin datos del jugador: usuario, ritmo, Elo, objetivo y patrones salen del perfil adjunto en cada chat. |
+| crear perfil v0 | `prompt_crear_perfil_v0.txt` | Prompt aparte (numeración propia) que completa el perfil de un usuario nuevo a partir de las métricas. |
 
-**Sobre la numeración:** los prompts se numeran sin huecos, de v0 a v4. Antes de la renumeración se usaron otros nombres: el original se llamó v1 en un changelog antiguo y las versiones posteriores v2, v3 y v4. Si encuentras esas referencias en conversaciones o notas antiguas, usa esta equivalencia:
+**Sobre la numeración:** los prompts se numeran sin huecos, de v0 a v6. Antes de la renumeración se usaron otros nombres: el original se llamó v1 en un changelog antiguo y las versiones posteriores v2, v3 y v4. Si encuentras esas referencias en conversaciones o notas antiguas, usa esta equivalencia:
 
 | Nombre anterior | Nombre actual |
 |---|---|
@@ -20,6 +23,36 @@
 | v4 | v3 |
 
 Las versiones antiguas se conservan sin editar, salvo las correcciones menores que se anotan aquí.
+
+---
+
+## v6 (11 nov 2026)
+
+La aplicación pasa a admitir varios usuarios, cada uno con su perfil en `perfiles/<usuario>.md`. Los datos del jugador dejan de estar escritos en el prompt, donde se quedaban obsoletos (rating, patrones).
+
+**Cambiado**
+- **Datos del jugador:** se sustituyen por la regla de que todo sale del perfil adjunto (cabecera con usuario, ritmo, Elo y objetivo, más áreas de mejora A y fuertes S). Sin perfil, el prompt pregunta cuál de los dos bandos es el usuario y omite la comparativa de patrones y las referencias de indicadores.
+- **Tiempo disponible:** el ejemplo es genérico (10+0 y 15+10).
+- Las menciones al usuario pasan a "el jugador".
+
+**Sin cambios:** modo fichero, completitud, formato PGN y umbrales. **No probado** en un chat nuevo.
+
+**Prompt nuevo, `prompt_crear_perfil_v0.txt`:** crea el perfil de un usuario desde la plantilla con la tabla del script y el CSV. Solo usa cifras de los adjuntos y marca como pendiente lo que falte. Tras una primera pasada hecha por quien conocía el proyecto, se corrigieron dos contradicciones: los fuertes mínimos frente a pocos datos, y preguntar las horas semanales antes de escribir.
+
+**Probado una vez en un chat nuevo (11 nov 2026), con 24 partidas y 15+10:** preguntó las horas semanales antes de escribir, no tocó la cabecera, no propuso cambios de repertorio, marcó como pendiente lo que no podía medir y sus cifras coincidieron con las del CSV (se comprobaron las principales). Matiz: la ventaja grande de S1 usa un corte ajustado a los datos y es solo un indicio. Es una sola prueba, con una sola cuenta y pocas partidas; falta probarlo con datos distintos, por ejemplo sin partidas analizadas.
+
+---
+
+## v5 (11 nov 2026)
+
+El proyecto pasa a basarse solo en la cuenta dvillaj131313 (ritmo 10+0), sin la otra cuenta que usaban las versiones anteriores.
+
+**Cambiado**
+- **Datos del jugador:** usuario dvillaj131313, rating aproximado 1526 y objetivo 1850 en 10+0. Se eliminan el repertorio y los patrones recurrentes de la cuenta anterior; los patrones remiten al perfil adjunto (`perfil_dvillaj131313.md`, códigos A1 a A7 y S1 a S4).
+- **Tiempo usado:** suma el incremento de la cabecera `TimeControl` (0 s en 10+0) en lugar de 10 s fijos. El tiempo disponible del ejemplo pasa a 10+0.
+- Todas las menciones al usuario pasan a dvillaj131313.
+
+**Sin cambios:** modo fichero, completitud, formato PGN y umbrales. **No probado** en un chat nuevo.
 
 ---
 
@@ -123,7 +156,7 @@ Prompt preparado por el usuario antes de la primera prueba. En disco se llamaba 
 ## Pendiente y limitaciones conocidas
 
 - **El apartado de veredicto honesto** sigue escrito como una pregunta que empieza por el signo de apertura, que el modelo podría copiar y romper la regla de caracteres seguros. Se arregla reescribiéndolo sin signos de interrogación.
-- **Los patrones recurrentes están escritos dentro del prompt** y se quedan obsoletos. La alternativa es apoyarse solo en `perfil_peondeloto.md`.
+- **Los patrones recurrentes están escritos dentro del prompt** y se quedan obsoletos. La alternativa es apoyarse solo en `perfil_dvillaj131313.md`.
 - **El PGN enriquecido no conserva las evaluaciones** de la partida original, porque el prompt solo permite la etiqueta del reloj en los comentarios. El script de métricas debe ejecutarse siempre sobre los PGN originales.
 - **Las explicaciones tácticas pueden fallar**, sobre todo sin evaluaciones de Stockfish. Contrasta lo importante en Lichess.
 - **El modo fichero depende del entorno.** Solo funciona si el chat puede crear y entregar ficheros; en caso contrario el prompt usa el modo bloques, donde sigue existiendo el riesgo de salidas recortadas.

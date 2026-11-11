@@ -4,12 +4,13 @@
 metricas_pgn.py - Metricas objetivas de tus partidas de Lichess. Sin dependencias.
 
 USO
-  python metricas_pgn.py partidas/ --usuario peondeloto --ritmo 900+10 --base-hasta 2026-11-03
-  python metricas_pgn.py export1.pgn export2.pgn --usuario peondeloto
+  python metricas_pgn.py partidas/dvillaj131313 --usuario dvillaj131313   # ritmo y base-hasta salen de perfiles/dvillaj131313.md
+  python metricas_pgn.py partidas/ --usuario dvillaj131313 --ritmo 600+0 --base-hasta 2026-11-07
+  python metricas_pgn.py export1.pgn export2.pgn --usuario dvillaj131313
 
   partidas/      carpeta con tus exportaciones .pgn (se leen todas y se eliminan duplicados por GameId)
   --usuario      tu nombre en Lichess (si se omite, se usa el que mas aparece)
-  --ritmo        filtra por TimeControl exacto, por ejemplo 900+10
+  --ritmo        filtra por TimeControl exacto, por ejemplo 600+0
   --base-hasta   las partidas hasta esa fecha (inclusive) forman el grupo BASE;
                  las posteriores se agrupan por semana ISO
   --csv          fichero de salida (por defecto progreso_<usuario>.csv);
@@ -37,6 +38,8 @@ import re
 import statistics as st
 import sys
 from collections import Counter
+
+import perfiles
 
 # Objetivos de partida (propuestas ajustables, no referencias externas)
 OBJETIVOS = {
@@ -234,6 +237,13 @@ def resumen(partidas, base_hasta):
     return "\n".join([linea(cab), linea(["---"] * len(cab))] + [linea(x) for x in filas])
 
 
+def ruta_tabla(tabla, csv_destino, usuario):
+    """Donde guardar la tabla resumen: --tabla si se indica; si no, tabla_<usuario>.md junto al CSV."""
+    if tabla:
+        return tabla
+    return os.path.join(os.path.dirname(csv_destino), f"tabla_{usuario}.md")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Metricas de progreso a partir de PGN de Lichess")
     ap.add_argument("rutas", nargs="+")
@@ -241,6 +251,10 @@ def main():
     ap.add_argument("--ritmo")
     ap.add_argument("--base-hasta", dest="base_hasta")
     ap.add_argument("--csv")
+    ap.add_argument("--tabla", help="fichero donde guardar la tabla resumen (por defecto, tabla_<usuario>.md "
+                                    "junto al CSV)")
+    ap.add_argument("--perfil", help="perfiles/<usuario>.md; por defecto se usa el del usuario si existe. "
+                                     "Aporta ritmo y base-hasta cuando no se indican")
     a = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
@@ -253,6 +267,16 @@ def main():
         c = Counter(n for _, cab, _ in crudas for n in (cab.get("White"), cab.get("Black")) if n)
         usuario = c.most_common(1)[0][0]
         print(f"Usuario detectado: {usuario}")
+    try:
+        perfil = perfiles.leer_ruta(a.perfil) if a.perfil else perfiles.leer(usuario)
+    except (OSError, ValueError) as e:
+        sys.exit(f"No se puede leer el perfil: {e}")
+    if perfil:
+        if not a.ritmo and perfil.get("ritmo"):
+            a.ritmo = perfil["ritmo"]
+        if not a.base_hasta and perfil.get("base_hasta"):
+            a.base_hasta = perfil["base_hasta"]
+        print(f"Perfil de {usuario}: ritmo {a.ritmo}, base hasta {a.base_hasta or 'sin fecha (periodos semanales)'}")
     partidas = []
     for gid, cab, mv in crudas:
         if a.ritmo and cab.get("TimeControl") != a.ritmo:
@@ -272,8 +296,13 @@ def main():
         for p in partidas:
             w.writerow(["" if p[c] is None else str(p[c]).replace(".", ",") if isinstance(p[c], float) else p[c]
                         for c in columnas])
-    print(f"{len(partidas)} partidas de {usuario} -> {destino}\n")
-    print(resumen(partidas, a.base_hasta))
+    tabla = resumen(partidas, a.base_hasta)
+    destino_tabla = ruta_tabla(a.tabla, destino, usuario)
+    with open(destino_tabla, "w", encoding="utf-8", newline="") as fh:
+        fh.write(tabla + "\n")
+    print(f"{len(partidas)} partidas de {usuario} -> {destino}")
+    print(f"Tabla resumen -> {destino_tabla}\n")
+    print(tabla)
 
 
 if __name__ == "__main__":

@@ -16,8 +16,8 @@ Requiere python-chess y Stockfish (ver README.md, sección 4).
 El resultado no depende de N: cada partida se analiza igual con un proceso que con varios.
 
 Uso:
-  pipenv run python analisis_local/calibrar_con_lichess.py partidas/peondeloto [--motor /ruta/a/stockfish] --maximo 10
-  pipenv run python analisis_local/calibrar_con_lichess.py partidas/peondeloto --maximo 10 --procesos 4
+  pipenv run python analisis_local/calibrar_con_lichess.py partidas/dvillaj131313 [--motor /ruta/a/stockfish] --maximo 10
+  pipenv run python analisis_local/calibrar_con_lichess.py partidas/dvillaj131313 --maximo 10 --procesos 4
 """
 import argparse
 import collections

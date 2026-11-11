@@ -10,7 +10,7 @@ Solo se usan partidas con [Annotator "lichess.org"]. Asi se ignoran los PGN anal
 (analizar_local.py), cuyas etiquetas las genera nucleo.valorar y harian la validacion circular, aunque
 tengan el mismo GameId que la partida original.
 
-Uso:  python validar_umbrales_offline.py partidas/peondeloto partidas/dvillaj
+Uso:  python validar_umbrales_offline.py partidas/dvillaj131313
 """
 import argparse
 import collections

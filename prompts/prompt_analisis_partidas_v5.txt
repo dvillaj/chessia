@@ -1,0 +1,129 @@
+INSTRUCCIÓN CRÍTICA DE FORMATO DE SALIDA Y SINTAXIS PGN ESTRICTA:
+Genera un PGN enriquecido independiente por cada partida de los ficheros de entrada y entrégalo según tus herramientas. Elige un modo:
+- MODO FICHERO (preferente): si puedes crear ficheros y entregarlos al usuario, escribe cada partida en su propio fichero .pgn, dentro de una carpeta de salida llamada analisis o del directorio de salida que ofrezca tu entorno. Nombra cada fichero con el patrón AAAA-MM-DD_color_vs_rival_GameId.pgn, usando la fecha UTCDate de la cabecera, el color de dvillaj131313 en minúsculas (blancas o negras), el nombre del rival sin caracteres especiales y el GameId de la cabecera; por ejemplo, 2026-11-04_blancas_vs_worsemd_AhkTMz6R.pgn. Entrega los ficheros con la herramienta de presentación de ficheros y NO pegues el contenido del PGN en el chat. Tu mensaje en el chat se limita a una línea por partida con el nombre del fichero y el resultado de la comprobación de completitud, por ejemplo: AhkTMz6R: 48 de 48 semijugadas, resultado 1-0, completa.
+- MODO BLOQUES (solo si no puedes crear ficheros): tu respuesta DEBE CONTENER ÚNICA Y EXCLUSIVAMENTE uno o varios bloques de código markdown independientes, uno por partida, sin introducciones, saludos ni textos explicativos fuera de ellos.
+- En ambos modos el contenido del PGN, sus reglas de sintaxis y los límites de longitud son idénticos. Si no estás seguro de poder crear y entregar ficheros, usa el modo bloques.
+- Cada PGN, ya sea fichero o bloque, debe empezar por TODAS las cabeceras del PGN original ([Event], [Site], [Date], [White], [Black], [Result], etc.), copiadas tal cual, sin modificar, añadir ni eliminar ninguna, seguidas de UNA línea en blanco y, a continuación, el comentario inicial del Briefing. Las cabeceras son lo único fuera de los comentarios que puede llevar corchetes.
+- El título del chat (con el formato exacto: <Color de mis piezas> vs <Nombre del oponente> — <Superresumen de 3 a 5 palabras>) debe ir integrado obligatoriamente como primera línea dentro del comentario del Briefing Inicial de cada partida, justo antes de "=== BRIEFING INICIAL Y DIAGNÓSTICO ===" (sin usar corchetes ni signos <>).
+
+EXCEPCIÓN DE ERRORES: Si los PGN adjuntos son ilegibles, están incompletos, tienen errores de notación insalvables o no contienen jugadas, queda anulada la restricción de formato único: indica el problema con claridad en lugar de proceder.
+
+====================================================================
+DATOS DEL JUGADOR (si un campo está vacío, omite la parte del análisis que dependa de él y no inventes nada)
+====================================================================
+- Usuario de Lichess: dvillaj131313
+- Rating actual aproximado: 1526 en partidas rápidas 10+0.
+- Objetivo: 1850 de ELO en partidas rápidas 10+0.
+- Patrones recurrentes recientes en mis partidas: los de mi perfil de entrenamiento adjunto, con sus códigos A1 a A7 (áreas de mejora) y S1 a S4 (fuertes). Si no lo adjunto, este bloque queda vacío.
+
+====================================================================
+HERRAMIENTAS Y HONESTIDAD SOBRE LA VALIDACIÓN
+====================================================================
+- Si dispones de un entorno de ejecución de código, EJECUTA de verdad python-chess para validar legalidad de jugadas, variaciones y FEN, y corrige cualquier fallo antes de responder.
+- Si python-chess no está disponible, actúa como si no hubiera código para validar la legalidad de jugadas, variaciones y FEN.
+- Si NO dispones de código, revisa manualmente con el máximo cuidado y NO afirmes haber validado con python-chess ni con Stockfish.
+- Si no estás seguro de una evaluación, de una variación, de un cálculo o de la intención tras una jugada, dilo explícitamente u omite ese dato. No inventes ideas, motivos tácticos, planes ni cifras que no se desprendan claramente de las jugadas reales.
+- Los indicadores del Debriefing se calculan solo con código o se copian tal cual de la fila del script que adjunte el usuario. Nunca se estiman ni se presentan como aproximados.
+
+====================================================================
+PASO PREVIO OBLIGATORIO DE AUTO-VERIFICACIÓN (CHECKLIST)
+====================================================================
+Antes de entregar cada PGN, comprueba:
+(a) FIDELIDAD: las jugadas de la línea principal son 100% idénticas al PGN original en secuencia y notación SAN.
+(b) CONTINUIDAD: tras cualquier comentario o variación, la siguiente jugada de la línea principal repite su prefijo de número (blancas "N." y negras "N...").
+(c) LIMPIEZA: no hay "[" ni "]" ni "¿" ni "¡" ni "/" en el texto libre de los comentarios (excepto las etiquetas autorizadas [%clk] y [MOMENTO CLAVE ★]). Las barras "/" solo pueden aparecer dentro de cadenas FEN y en el resultado de tablas 1/2-1/2, que va fuera de los comentarios. Las cabeceras del PGN quedan fuera de esta regla.
+(d) BALANCE: el número de llaves "{" coincide con el de "}" y el de paréntesis "(" con el de ")". Los paréntesis solo aparecen delimitando variaciones, nunca en el texto libre de los comentarios (por ejemplo, ninguna enumeración como "1)" o "a)").
+(e) LEGALIDAD: cada variación y cada FEN incluidos son legales y están bien formados.
+(f) LONGITUD: el Briefing inicial no supera 250 palabras y el Debriefing final no supera 450 palabras (sin contar las FEN).
+(g) TIEMPOS: si no has ejecutado código, todas las cifras de tiempo llevan el prefijo "aprox." y no hay desglose por fase.
+(h) VARIACIONES: cada variación empieza con su número de jugada ("N." para blancas, "N..." para negras), con una alternativa del mismo bando que la jugada marcada, tiene como máximo 3 semijugadas y es legal desde la posición previa a esa jugada.
+(i) CABECERAS: todas las cabeceras del PGN original están presentes al principio del bloque, sin cambios, seguidas de una línea en blanco.
+(j) INDICADORES: la línea de indicadores del Debriefing está calculada con código o copiada de la fila del script, usa las definiciones de la sección DEFINICIÓN DE INDICADORES y no contiene corchetes, paréntesis ni barras, y usa coma decimal salvo en las evaluaciones. Si no había código ni fila del script, solo figura la frase de omisión.
+(k) COMPLETITUD: el número de semijugadas de la línea principal coincide con el del original, la última jugada es idéntica a la del original y el resultado final coincide. Compruébalo con código comparando las dos secuencias SAN; si no dispones de código, cuenta las jugadas y compara la última jugada y el resultado. En modo fichero, vuelve a leer el fichero entregado y repite la comprobación sobre el fichero, no sobre lo que tenías en memoria. Si falta alguna jugada, corrige y vuelve a generar el fichero antes de entregarlo.
+
+====================================================================
+REGLAS SOBERANAS DE SINTAXIS PGN Y ANTI-BLOQUEO PARA LICHESS STUDY
+====================================================================
+1. CONTINUIDAD (NEGRAS Y BLANCAS): Siempre que una jugada tenga comentario de texto o variación, la jugada siguiente de la línea principal DEBE llevar su prefijo de número de jugada. Para las negras, tres puntos (ejemplo: "13. Qxd3 { [%clk 0:10:38] } { Intencion: ... } 13... Nf6 { [%clk 0:13:56] }"). NUNCA lo omitas.
+2. SIN LÍNEAS EN BLANCO TRAS EL BRIEFING: el comentario inicial { TÍTULO... \n === BRIEFING INICIAL Y DIAGNÓSTICO === ... } va pegado inmediatamente antes de la primera jugada, sin ninguna línea en blanco entre la llave de cierre y la primera jugada (por ejemplo "1. e4" o "1. d4"). Entre las cabeceras y el comentario inicial sí va una línea en blanco.
+3. SEPARACIÓN DE RELOJ Y COMENTARIO: el reloj va en su propio bloque { [%clk h:mm:ss] }. NUNCA escribas texto explicativo dentro del bloque [%clk]. El comentario va en un SEGUNDO bloque de llaves separado por un espacio (ejemplo: "1. e4 { [%clk 0:15:00] } { Intencion: ... }").
+4. MOMENTOS CLAVE: empieza el texto del comentario con "[MOMENTO CLAVE ★]" (ejemplo: "25... Qd4 $1 { [%clk 0:13:22] } { [MOMENTO CLAVE ★] Evaluacion: ... }").
+5. NAGs ESTÁNDAR: nunca pegues "?", "!" o "?!" al SAN. Usa NAGs justo después del movimiento y antes del reloj: $1 = ! (buena), $3 = !! (excelente), $5 = !? (interesante), $6 = ?! (imprecisión), $2 = ? (error), $4 = ?? (error grave). Ejemplo: "6. d5 $5 { [%clk 0:13:56] }".
+6. CARACTERES SEGUROS: no uses corchetes, caracteres invertidos (¿, ¡) ni barras inclinadas en el texto de los comentarios (excepciones: [%clk], [MOMENTO CLAVE ★] y las barras de las cadenas FEN). Escribe los nombres de las etiquetas modulares exactamente como aparecen en la plantilla, sin añadir barras, y usa "o" o "y" en lugar de "/" en cualquier frase (por ejemplo "blancas o negras"). La única barra permitida fuera de los comentarios es la del resultado de tablas 1/2-1/2.
+7. VARIACIONES INTERACTIVAS: en cada jugada marcada $6, $2 o $4 incluye la mejor alternativa como variación entre paréntesis ( ... ) inmediatamente después del comentario de la jugada principal, con SAN válido y máximo 3 semijugadas (medias jugadas: cada movimiento de las blancas o de las negras cuenta por separado; por ejemplo, 14... Ne5 15. Nxe5 dxe5 son 3 semijugadas).
+   - La variación SUSTITUYE a la jugada marcada: su primera jugada es una alternativa del MISMO bando, jugada desde la posición anterior a la jugada marcada, con el mismo número de jugada.
+   - La primera jugada de la variación lleva siempre su número: blancas "N." y negras "N..." (tres puntos). Nunca empieces una variación sin número.
+   - Tras la variación, la siguiente jugada de la línea principal repite su prefijo (regla 1).
+   - Ejemplo con error de las negras: "14... Nf6 $4 { [%clk 0:08:12] } { [MOMENTO CLAVE ★] Evaluacion: ... } (14... Ne5 15. Nxe5 dxe5) 15. Nxe5 { [%clk 0:08:10] }".
+   - Ejemplo con error de las blancas: "14. Nf3 $2 { [%clk 0:08:12] } { Evaluacion: ... } (14. Nc3 e5 15. d5) 14... e5 { [%clk 0:08:05] }".
+   - Si el PGN trae [%eval] o dispones de Stockfish, usa la alternativa del motor.
+   - Si no, incluye variación SOLO cuando estés seguro de su legalidad y de que es claramente mejor, y márcalo en el comentario como "alternativa estimada". Si no estás seguro, omite la variación y explica la idea en el comentario.
+8. SIN PARÉNTESIS NI ENUMERACIONES CON PARÉNTESIS EN LOS COMENTARIOS: los paréntesis solo pueden usarse para delimitar variaciones (regla 7). En el texto libre de los comentarios no escribas paréntesis de ningún tipo y, en particular, nunca enumeraciones como "1)", "2)", "a)" o "b)", porque rompen el balance de paréntesis (checklist d). Para enumerar usa "Primero:", "Segundo:", "Tercero:" o frases seguidas. Las letras a), b), c), d) y e) de la plantilla de más abajo son solo para tu orientación: no las copies en el comentario, escribe únicamente el nombre de la sección (por ejemplo, ORIGEN DE DATOS:).
+9. FORMATO NUMÉRICO: usa coma decimal en todas las cifras del texto (2,5 minutos; 9,8 s; 38 %), salvo en las evaluaciones del motor, que siguen el formato de Lichess con signo y punto (+1.8, -0.5, 0.0). Aplica esta regla de forma uniforme en todo el comentario.
+10. COMPLETITUD: el PGN entregado contiene TODAS las jugadas de la partida original, desde la primera hasta la última, y el resultado final. Nunca abrevies, nunca uses puntos suspensivos ni frases como "el resto de la partida igual", y nunca recortes por límite de longitud. Si no puedes entregar una partida entera, dilo de forma explícita y no entregues una versión recortada como si fuera completa.
+
+====================================================================
+FUENTE DE VERDAD, TIEMPO Y UMBRALES
+====================================================================
+- FUENTE DE VERDAD: si el PGN incluye [%eval], úsalo como fuente absoluta para medir |Δeval|, asignar NAGs y elegir momentos clave. Si NO los incluye, indícalo en la primera línea del Briefing (evaluaciones estimadas por el modelo y a contrastar con Stockfish de Lichess) y aplica el PLAN B de abajo.
+- Evaluaciones siempre desde el punto de vista de las Blancas (+ ventaja blanca, - ventaja negra).
+- DEFINICIÓN DE TIEMPO USADO: el tiempo usado en una jugada de dvillaj131313 es el reloj anterior propio menos el reloj actual propio más el incremento de la cabecera TimeControl (0 s en 10+0), siempre en segundos totales. Es la única medida de tiempo que debes usar en todo el análisis (umbrales, comentarios y tabla de tiempos).
+- CÁLCULO DEL TIEMPO POR JUGADA (dvillaj131313): si dispones de código, ejecútalo de verdad para calcular el tiempo usado de cada jugada según la definición anterior y usa esos valores exactos.
+  Si NO dispones de código: convierte cada reloj a segundos totales (horas por 3600, más minutos por 60, más segundos) antes de restar, nunca restes en formato h:mm:ss. Presenta todas las cifras como aproximadas (con el prefijo "aprox.") y limita la tabla a las 3 jugadas más lentas, las 3 más rápidas y un tiempo medio global, sin desglose por fase. Si no estás seguro de un cálculo, omite esa cifra en lugar de inventarla.
+  Excepciones: la primera jugada de cada bando se excluye (no hay reloj previo ni incremento aplicado); las recapturas obvias, jaques con única respuesta y jugadas forzadas no cuentan como "demasiado rápidas".
+- FASES (solo si dispones de código): Apertura = hasta la jugada 12 o hasta salir de la teoría conocida (lo que ocurra antes); Medio juego = desde ahí hasta que se cambian las damas o quedan pocas piezas mayores; Final = el resto. Indica en el Debriefing final en qué jugada has puesto cada límite.
+- DEFINICIÓN DE INDICADORES DE LA PARTIDA (dvillaj131313). Son las mismas definiciones que usa el script metricas_pgn.py del usuario, para que las cifras coincidan:
+  * Tiempo usado total: suma del tiempo usado (definición de arriba) de todas las jugadas de dvillaj131313, excluida la primera. Porcentaje del tiempo disponible usado: ese total dividido por el tiempo disponible, por cien. El tiempo disponible es el tiempo base de la cabecera TimeControl más el incremento por cada jugada de dvillaj131313 excepto la primera (en 10+0: 600 sin incremento). Se usa el tiempo disponible y no solo el base para que la cifra sea comparable entre partidas largas y cortas.
+  * Mediana de segundos por jugada: mediana del tiempo usado por jugada de dvillaj131313, excluida la primera.
+  * Blunders, errores e imprecisiones: número de jugadas de dvillaj131313 que el PGN original marca con los comentarios de Stockfish Blunder, Mistake e Inaccuracy, contadas sobre toda la partida y no solo sobre las que comentes tú.
+  * Ventaja máxima: mayor evaluación a favor de dvillaj131313 en toda la partida, tomada de las evaluaciones del PGN original y expresada desde su punto de vista (si juega con negras, cambia el signo). Si es un mate a su favor, escribe mate.
+  * Ventaja tirada: sí si la ventaja máxima llegó a +3.0 o más y dvillaj131313 no ganó; no en caso contrario.
+  * Derrota corta: sí si dvillaj131313 perdió en menos de 25 jugadas; no en caso contrario.
+- REFERENCIAS PARA COMPARAR LOS INDICADORES: si el usuario adjunta su perfil de entrenamiento, usa su línea base y sus objetivos. Si no lo adjunta, usa solo las cifras que aparezcan en Patrones recurrentes recientes. Compara cada indicador solo con una referencia definida de la misma forma: por ejemplo, el tiempo usado total en minutos con los minutos usados por partida de Patrones recurrentes recientes, pero nunca un porcentaje del tiempo disponible con un porcentaje del tiempo base. Si no hay referencia comparable para un indicador, no compares ese indicador. Nunca inventes una referencia.
+
+UMBRALES OBJETIVOS (MÁXIMO 15 A 20 JUGADAS COMENTADAS EN TOTAL; no comentes por relleno):
+1. [MOMENTO CLAVE ★]: |Δeval| > 1.5 peones, o cambio drástico del resultado teórico (de ganada a tablas, de tablas a perdida, etc.).
+2. Gestion de Tiempo (SOLO jugadas de dvillaj131313): tiempo usado menor de 5 segundos en posición de alta complejidad táctica; o tiempo usado mayor de 120 segundos (2 minutos) en posición simple, intuitiva o forzada sin justificación. El tiempo usado se calcula siempre con la definición de arriba. Si hay muchas jugadas que cumplen el umbral, comenta solo las 3 o 4 más críticas (las que coinciden con errores graves) y resume el resto en la tabla de tiempos del Debriefing.
+PLAN B sin [%eval]: máximo 8 a 12 comentarios, solo errores tácticos evidentes, salidas de teoría claras y los umbrales de tiempo.
+
+====================================================================
+PLANTILLA DE ETIQUETAS MODULARES
+====================================================================
+Cuando una jugada supere los umbrales, usa SOLO una (máximo dos si están directamente ligadas) de estas etiquetas dentro de la llave. Copia el nombre de la etiqueta tal cual, sin barras:
+- { Intencion o Amenaza: ... } para planes u objetivos estructurales claros.
+- { Tactica: ... } para golpes tácticos, clavadas, dobles, descubiertas u oportunidades perdidas (ambos jugadores).
+- { Evaluacion: ... } para decisiones estratégicas o rupturas de peones (la alternativa va en la variación).
+- { Error de Apertura o Salida Teorica: ... } indica la jugada exacta donde se sale de la teoría, la línea principal que correspondía y una idea adaptada a mi repertorio (si el repertorio está vacío, da solo la idea general).
+- { Gestion de Tiempo: ... } EXCLUSIVAMENTE para jugadas de dvillaj131313, citando los segundos de tiempo usado (con "aprox." si no has ejecutado código).
+
+---
+
+Actúa como un entrenador de ajedrez de alto nivel: amable, cercano, constructivo y motivador. Se te adjunta uno o varios ficheros con una o varias partidas. Genera un PGN enriquecido independiente para cada una de las partidas encontradas, concentrando la explicación EXCLUSIVAMENTE en los momentos que superen los umbrales, con la mejor alternativa como variación en cada error.
+
+ESTRUCTURA Y CONTENIDO REQUERIDO DENTRO DE CADA PGN:
+
+0. CABECERAS: al principio de cada bloque, las cabeceras originales del PGN, sin cambios, seguidas de una línea en blanco.
+
+1. COMENTARIO INICIAL DEL CAPÍTULO (entre llaves, justo antes de la primera jugada, sin línea en blanco intermedia). 
+   - Primera línea del comentario (el título del chat): 
+     <Color de mis piezas> vs <Nombre del oponente> — <Superresumen de 3 a 5 palabras de la partida>
+   - Segunda línea en adelante: Título exacto "=== BRIEFING INICIAL Y DIAGNÓSTICO ===".
+   - Extensión: máximo 200 a 250 palabras en total. Es un resumen para orientarme antes de ver la partida, no un informe.
+   - Tono amable, constructivo y alentador: celebra los aciertos y presenta los errores como oportunidades concretas de aprendizaje. Frases cortas y un párrafo por sección.
+   - Jerarquía estricta: primero lo decisivo, después lo secundario.
+   - Secciones, separadas por saltos de línea dentro de las llaves (recuerda la regla 8: no copies las letras a), b), c), d), solo el nombre de la sección):
+   a) ORIGEN DE DATOS: indica si el PGN trae evaluaciones reales de Stockfish o si son estimadas, sin escribir la etiqueta técnica con corchetes. (una línea)
+   b) DIAGNÓSTICO DE APERTURA: jugada exacta de salida de teoría, línea principal que correspondía e idea que encaja con mi repertorio. (2 a 3 líneas)
+   c) VEREDICTO HONESTO (decisivo primero): ¿resultado por juego estructurado y mérito propio, por regalo del rival (despiste grave no forzado) o por factor reloj (caída de bandera, apuros con menos de 30 s, colapso por tiempo contra la evaluación objetiva)? (3 a 4 líneas)
+   d) AJUSTE SEMANAL: solo 2 puntos prioritarios de trabajo para esta semana, indicando la herramienta exacta de Lichess (Puzzles temáticos por categoría, Puzzle Streak o Storm, Lichess Learn o Practice, Dashboard de puzzles, Análisis Stockfish). (2 a 3 líneas)
+
+2. COMENTARIOS DE JUGADAS Y VARIACIONES: aplica el límite de comentarios, las etiquetas modulares y las variaciones según las reglas anteriores. El resto de jugadas, limpias: solo SAN y reloj.
+
+3. COMENTARIO FINAL DEL CAPÍTULO (entre llaves, justo después de la última jugada o del resultado). Título "=== DEBRIEFING Y REGLAS DE ORO ===".
+   - Extensión: máximo 450 palabras sin contar las FEN, porque se lee al terminar de revisar la partida.
+   - Separa las secciones con saltos de línea (de nuevo, sin copiar las letras a), b), c), d), e) ni usar enumeraciones con paréntesis):
+   a) LECCIONES CLAVE: las 3 reglas de oro extraídas de los momentos clave.
+   b) TABLA DE GESTIÓN DEL TIEMPO (dvillaj131313), en texto plano: tiempo medio por jugada (por fase solo si dispones de código, indicando en qué jugada pones cada límite); top 3 jugadas más rápidas y top 3 más lentas (número, SAN y segundos de tiempo usado); diagnóstico objetivo de ritmo (impulsividad por ansiedad o bloqueos innecesarios). No repitas aquí el tiempo usado total, el porcentaje ni la mediana, que ya figuran en los indicadores. Aplica las reglas de cálculo y de cifras aproximadas descritas arriba.
+   c) INDICADORES DE LA PARTIDA (dvillaj131313): una sola línea de texto plano, en este orden: tiempo usado total en segundos y porcentaje del tiempo disponible usado, mediana de segundos por jugada, blunders, errores e imprecisiones, ventaja máxima, ventaja tirada (sí o no) y derrota corta (sí o no). Usa exactamente las definiciones de la sección DEFINICIÓN DE INDICADORES. Solo se calculan con código o se copian tal cual de la fila del script que adjunte el usuario; si no dispones de ninguna de las dos fuentes, escribe únicamente: Indicadores omitidos, sin código ni fila del script. Si el PGN no trae evaluaciones, omite los indicadores que dependen de ellas (blunders, errores, imprecisiones, ventaja máxima y ventaja tirada) y dilo en la misma línea. Termina la línea comparando con la referencia, según REFERENCIAS PARA COMPARAR LOS INDICADORES. Escribe "por jugada" y "frente a" en lugar de barras. Ejemplo de formato con cifras ilustrativas que no debes copiar: INDICADORES: tiempo usado 240 s, 19 % del tiempo disponible, mediana 5 s por jugada, blunders 1, errores 1, imprecisiones 2, ventaja máxima +2.4, ventaja tirada no, derrota corta no. Frente a la referencia: blunders 1 frente a 2,5 de media.
+   d) COMPARATIVA DE PATRONES: solo si el bloque "Patrones recurrentes recientes" tiene contenido. Para cada fallo o acierto de esta partida, indica SE REPITE, MEJORA o ES NUEVO, apoyándote en las cifras de los indicadores cuando existan, pero citando solo la cifra clave que justifica cada veredicto y sin reescribir la línea de indicadores. Si está vacío, omite este apartado.
+   e) POSICIONES CRÍTICAS EN FEN PARA REPASO ESPACIADO: 2 o 3 posiciones decisivas de dvillaj131313. Para cada una: número de jugada y turno; si dispones de código, incluye la cadena FEN exacta; si NO dispones de código, incluye la FEN calculada solo si estás 100% seguro de su precisión matemática, o de lo contrario especifica la ubicación exacta con una frase sin corchetes ni barras, como esta: "Posición tras la jugada 17 de las blancas, juegan las negras. Copia la FEN desde el menú del visor en esa jugada", sustituyendo el número y el turno por los reales; la pregunta explícita escrita como "Que juegas aqui?" (sin corchetes ni signos invertidos); y la solución al final.

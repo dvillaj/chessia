@@ -5,8 +5,8 @@ verificar_pgn.py - Comprueba que un PGN enriquecido esta COMPLETO y bien formado
 No necesita instalar nada. No depende del modelo que genero el PGN.
 
 USO
-  python verificar_pgn.py --originales partidas/peondeloto --enriquecidos analisis
-  python verificar_pgn.py --originales lichess_peondeloto_2026-11-05.pgn --enriquecidos analisis/2026-11-04_blancas_vs_worsemd_AhkTMz6R.pgn
+  python verificar_pgn.py --originales partidas/dvillaj131313 --enriquecidos analisis
+  python verificar_pgn.py --originales lichess_dvillaj131313_2026-11-05.pgn --enriquecidos analisis/2026-11-04_blancas_vs_worsemd_AhkTMz6R.pgn
 
   Las partidas se emparejan por GameId. Si una partida original no tiene su version enriquecida, se avisa.
   Devuelve codigo de salida 1 si algun PGN tiene errores.
